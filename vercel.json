@@ -2,7 +2,10 @@
   "framework": null,
   "outputDirectory": ".",
   "functions": {
-    "api/service-mapping.py": { "maxDuration": 30 }
+    "api/service-mapping.py": {
+      "maxDuration": 30,
+      "includeFiles": "data/**"
+    }
   },
   "crons": [
     { "path": "/api/service-mapping?refresh=true", "schedule": "0 3 * * *" }
