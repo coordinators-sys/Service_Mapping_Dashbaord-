@@ -1,0 +1,320 @@
+{
+  "regions": {
+    "SO22": "Banadir",
+    "SO11": "Awdal",
+    "SO12": "Woqooyi Galbeed",
+    "SO13": "Togdheer",
+    "SO14": "Sool",
+    "SO15": "Sanaag",
+    "SO16": "Bari",
+    "SO17": "Nugaal",
+    "SO18": "Mudug",
+    "SO19": "Galgaduud",
+    "SO20": "Hiraan",
+    "SO21": "Middle Shabelle",
+    "SO23": "Banadir",
+    "SO24": "Bay",
+    "SO25": "Bakool",
+    "SO26": "Gedo",
+    "SO27": "Middle Juba",
+    "SO28": "Lower Juba"
+  },
+  "districts": {
+    "SO2201": {
+      "name": "Banadir",
+      "region_code": "SO22"
+    },
+    "SO1101": {
+      "name": "Borama",
+      "region_code": "SO11"
+    },
+    "SO1102": {
+      "name": "Baki",
+      "region_code": "SO11"
+    },
+    "SO1103": {
+      "name": "Lughaye",
+      "region_code": "SO11"
+    },
+    "SO1104": {
+      "name": "Zeylac",
+      "region_code": "SO11"
+    },
+    "SO1201": {
+      "name": "Hargeysa",
+      "region_code": "SO12"
+    },
+    "SO1202": {
+      "name": "Berbera",
+      "region_code": "SO12"
+    },
+    "SO1203": {
+      "name": "Gebiley",
+      "region_code": "SO12"
+    },
+    "SO1301": {
+      "name": "Burco",
+      "region_code": "SO13"
+    },
+    "SO1302": {
+      "name": "Buuhoodle",
+      "region_code": "SO13"
+    },
+    "SO1303": {
+      "name": "Owdweyne",
+      "region_code": "SO13"
+    },
+    "SO1304": {
+      "name": "Sheikh",
+      "region_code": "SO13"
+    },
+    "SO1401": {
+      "name": "Laas Caanood",
+      "region_code": "SO14"
+    },
+    "SO1402": {
+      "name": "Caynabo",
+      "region_code": "SO14"
+    },
+    "SO1403": {
+      "name": "Taleek",
+      "region_code": "SO14"
+    },
+    "SO1404": {
+      "name": "Xudun",
+      "region_code": "SO14"
+    },
+    "SO1501": {
+      "name": "Ceerigaabo",
+      "region_code": "SO15"
+    },
+    "SO1502": {
+      "name": "Ceel Afweyn",
+      "region_code": "SO15"
+    },
+    "SO1503": {
+      "name": "Laasqoray",
+      "region_code": "SO15"
+    },
+    "SO1601": {
+      "name": "Bossaso",
+      "region_code": "SO16"
+    },
+    "SO1602": {
+      "name": "Bandarbeyla",
+      "region_code": "SO16"
+    },
+    "SO1603": {
+      "name": "Caluula",
+      "region_code": "SO16"
+    },
+    "SO1604": {
+      "name": "Iskushuban",
+      "region_code": "SO16"
+    },
+    "SO1605": {
+      "name": "Qandala",
+      "region_code": "SO16"
+    },
+    "SO1606": {
+      "name": "Qardho",
+      "region_code": "SO16"
+    },
+    "SO1701": {
+      "name": "Garoowe",
+      "region_code": "SO17"
+    },
+    "SO1702": {
+      "name": "Burtinle",
+      "region_code": "SO17"
+    },
+    "SO1703": {
+      "name": "Eyl",
+      "region_code": "SO17"
+    },
+    "SO1801": {
+      "name": "Gaalkacyo",
+      "region_code": "SO18"
+    },
+    "SO1802": {
+      "name": "Galdogob",
+      "region_code": "SO18"
+    },
+    "SO1803": {
+      "name": "Hobyo",
+      "region_code": "SO18"
+    },
+    "SO1804": {
+      "name": "Jariiban",
+      "region_code": "SO18"
+    },
+    "SO1805": {
+      "name": "Xarardheere",
+      "region_code": "SO18"
+    },
+    "SO1901": {
+      "name": "Dhuusamarreeb",
+      "region_code": "SO19"
+    },
+    "SO1902": {
+      "name": "Cabudwaaq",
+      "region_code": "SO19"
+    },
+    "SO1903": {
+      "name": "Cadaado",
+      "region_code": "SO19"
+    },
+    "SO1904": {
+      "name": "Ceel Buur",
+      "region_code": "SO19"
+    },
+    "SO1905": {
+      "name": "Ceel Dheer",
+      "region_code": "SO19"
+    },
+    "SO2001": {
+      "name": "Belet Weyne",
+      "region_code": "SO20"
+    },
+    "SO2002": {
+      "name": "Bulo Burto",
+      "region_code": "SO20"
+    },
+    "SO2003": {
+      "name": "Jalalaqsi",
+      "region_code": "SO20"
+    },
+    "SO2101": {
+      "name": "Jowhar",
+      "region_code": "SO21"
+    },
+    "SO2102": {
+      "name": "Adan Yabaal",
+      "region_code": "SO21"
+    },
+    "SO2103": {
+      "name": "Balcad",
+      "region_code": "SO21"
+    },
+    "SO2104": {
+      "name": "Cadale",
+      "region_code": "SO21"
+    },
+    "SO2301": {
+      "name": "Marka",
+      "region_code": "SO23"
+    },
+    "SO2302": {
+      "name": "Mogadishu Dayniile",
+      "region_code": "SO23"
+    },
+    "SO2303": {
+      "name": "Baraawe",
+      "region_code": "SO23"
+    },
+    "SO2304": {
+      "name": "Kurtunwaarey",
+      "region_code": "SO23"
+    },
+    "SO2305": {
+      "name": "Qoryooley",
+      "region_code": "SO23"
+    },
+    "SO2306": {
+      "name": "Sablaale",
+      "region_code": "SO23"
+    },
+    "SO2307": {
+      "name": "Wanla Weyn",
+      "region_code": "SO23"
+    },
+    "SO2401": {
+      "name": "Baidoa",
+      "region_code": "SO24"
+    },
+    "SO2402": {
+      "name": "Buur Hakaba",
+      "region_code": "SO24"
+    },
+    "SO2403": {
+      "name": "Diinsoor",
+      "region_code": "SO24"
+    },
+    "SO2404": {
+      "name": "Qansax Dheere",
+      "region_code": "SO24"
+    },
+    "SO2501": {
+      "name": "Xudur",
+      "region_code": "SO25"
+    },
+    "SO2502": {
+      "name": "Ceel Barde",
+      "region_code": "SO25"
+    },
+    "SO2503": {
+      "name": "Tayeeglow",
+      "region_code": "SO25"
+    },
+    "SO2504": {
+      "name": "Waajid",
+      "region_code": "SO25"
+    },
+    "SO2505": {
+      "name": "Rab Dhuure",
+      "region_code": "SO25"
+    },
+    "SO2601": {
+      "name": "Garbahaarey",
+      "region_code": "SO26"
+    },
+    "SO2602": {
+      "name": "Baardheere",
+      "region_code": "SO26"
+    },
+    "SO2603": {
+      "name": "Belet Xaawo",
+      "region_code": "SO26"
+    },
+    "SO2604": {
+      "name": "Ceel Waaq",
+      "region_code": "SO26"
+    },
+    "SO2605": {
+      "name": "Belet Xaawo",
+      "region_code": "SO26"
+    },
+    "SO2606": {
+      "name": "Luuq",
+      "region_code": "SO26"
+    },
+    "SO2701": {
+      "name": "Bu'aale",
+      "region_code": "SO27"
+    },
+    "SO2702": {
+      "name": "Jilib",
+      "region_code": "SO27"
+    },
+    "SO2703": {
+      "name": "Saakow",
+      "region_code": "SO27"
+    },
+    "SO2801": {
+      "name": "Kismaayo",
+      "region_code": "SO28"
+    },
+    "SO2802": {
+      "name": "Afmadow",
+      "region_code": "SO28"
+    },
+    "SO2803": {
+      "name": "Badhaadhe",
+      "region_code": "SO28"
+    },
+    "SO2804": {
+      "name": "Jamaame",
+      "region_code": "SO28"
+    }
+  }
+}

@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Service Mapping Dashboard — CCCM Cluster Somalia</title>
+  <link rel="icon" href="assets/images/cccm-logo.png" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="assets/css/dashboard.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <img src="assets/images/cccm-logo.png" alt="CCCM Cluster Somalia" class="brand-logo" />
+        <div class="brand-text">
+          <div class="eyebrow" data-i18n="eyebrow">SERVICE COVERAGE TOOL · CCCM CLUSTER SOMALIA</div>
+          <h1 data-i18n="title">Service Mapping Dashboard</h1>
+          <div class="header-info" id="header-info-line">Reporting period: —  •  0 assessed sites  •  Last Kobo sync: —</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-primary" id="btn-download" data-i18n="download">⬇ Download data</button>
+        <button class="btn btn-icon" id="btn-settings" title="Methodology / settings">⚙</button>
+        <button class="btn btn-icon" id="btn-theme" title="Toggle theme">🌓</button>
+        <select id="lang-switch" class="lang-switch" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="so">SO</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <div class="filter-bar" id="filter-bar">
+    <div class="container">
+      <div class="filter-grid">
+        <div class="filter-field">
+          <label data-i18n="f_region">Region</label>
+          <div id="filter-region"></div>
+        </div>
+        <div class="filter-field">
+          <label data-i18n="f_district">District</label>
+          <div id="filter-district"></div>
+        </div>
+        <div class="filter-field">
+          <label data-i18n="f_catchment">Catchment Area</label>
+          <div id="filter-catchment"></div>
+        </div>
+        <div class="filter-field">
+          <label data-i18n="f_site">Site Name</label>
+          <div id="filter-site"></div>
+        </div>
+        <div class="filter-field">
+          <label data-i18n="f_period">Reporting Period</label>
+          <div id="filter-period"></div>
+        </div>
+        <div class="filter-field">
+          <label data-i18n="f_sector">Sector</label>
+          <div id="filter-sector"></div>
+        </div>
+        <div class="filter-field">
+          <label data-i18n="f_agency">Agency</label>
+          <div id="filter-agency"></div>
+        </div>
+        <div class="filter-field">
+          <label data-i18n="f_coverage">Coverage status</label>
+          <div id="filter-coverage"></div>
+        </div>
+        <div class="filter-field filter-field-actions">
+          <button class="btn btn-primary btn-block" id="btn-reset-filters" data-i18n="reset">Reset filters</button>
+        </div>
+      </div>
+      <div class="filter-caption" id="filter-caption" data-i18n="caption_default">
+        Showing all service-mapping reports. Click any chart, KPI, map area or use the filters above to drill down.
+      </div>
+    </div>
+  </div>
+
+  <main class="container">
+    <div id="api-error-banner" class="banner banner-warning hidden"></div>
+    <div id="loading-banner" class="banner banner-info">
+      <span data-i18n="loading">Loading service-mapping data…</span>
+    </div>
+
+    <section id="section-key-figures" class="section">
+      <div class="kpi-grid" id="kpi-row"></div>
+      <div class="card insight-banner" id="insight-banner"></div>
+      <div class="sector-chips" id="sector-chips"></div>
+    </section>
+
+    <section id="section-coverage" class="section">
+      <div class="chart-grid">
+        <div class="card">
+          <div class="card-header">
+            <h2 data-i18n="h_coverage_by_sector">Service coverage by sector</h2>
+            <select id="sort-sector-bar" class="control-select">
+              <option value="coverage_desc" data-i18n="sort_highest">Highest coverage</option>
+              <option value="coverage_asc" data-i18n="sort_lowest">Lowest coverage</option>
+              <option value="gap_desc" data-i18n="sort_gap">Largest gap</option>
+            </select>
+          </div>
+          <div class="chart-wrap"><canvas id="chart-sector-bar"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2 data-i18n="h_coverage_over_time">Service coverage over time</h2></div>
+          <div class="chart-wrap"><canvas id="chart-coverage-trend"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <div class="card">
+          <div class="card-header"><h2 data-i18n="h_agencies_by_sector">Active agencies by sector</h2></div>
+          <div class="chart-wrap chart-wrap-tall"><canvas id="chart-agencies-by-sector"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2 data-i18n="h_service_availability">Service availability</h2></div>
+          <div class="chart-wrap chart-wrap-tall"><canvas id="chart-service-availability"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-agencies" class="section">
+      <div class="chart-grid">
+        <div class="card">
+          <div class="card-header"><h2 data-i18n="h_agencies_by_district">Agencies by district</h2></div>
+          <div class="chart-wrap"><canvas id="chart-agencies-by-district"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2 data-i18n="h_sites_by_agency">Sites covered by agency</h2></div>
+          <div class="chart-wrap"><canvas id="chart-sites-by-agency"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-priority" class="section">
+      <div class="kpi-grid" id="priority-kpi-row"></div>
+      <div class="chart-grid">
+        <div class="card">
+          <div class="card-header"><h2 data-i18n="h_top_underserved">Top underserved districts</h2></div>
+          <div id="top-underserved-districts"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2 data-i18n="h_priority_sites">Priority sites requiring follow-up</h2></div>
+          <div id="priority-sites-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-catchments" class="section">
+      <div class="kpi-grid" id="catchment-kpi-row"></div>
+      <div class="chart-grid">
+        <div class="card">
+          <div class="card-header"><h2 data-i18n="h_catchment_coverage">Coverage by catchment area</h2></div>
+          <div class="chart-wrap chart-wrap-tall"><canvas id="chart-catchment-coverage"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2 data-i18n="h_catchment_table">Catchment overview</h2></div>
+          <div class="table-scroll">
+            <table class="data-table" id="catchment-table">
+              <thead>
+                <tr>
+                  <th data-i18n="col_catchment">Catchment</th>
+                  <th data-i18n="col_district">District</th>
+                  <th data-i18n="col_catch_sites">Sites assessed</th>
+                  <th data-i18n="col_agencies">Active agencies</th>
+                  <th data-i18n="col_coverage_score">Coverage score</th>
+                  <th data-i18n="col_catch_gaps">Top missing sectors</th>
+                </tr>
+              </thead>
+              <tbody id="catchment-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-sites" class="section">
+      <div class="card">
+        <div class="card-header sites-table-header">
+          <h2><span id="sites-table-count">0 assessed sites</span></h2>
+          <input type="text" id="sites-table-search" class="search-input" data-i18n-placeholder="search_placeholder" placeholder="Search district, site, catchment or agency…" />
+          <button class="btn btn-primary" id="btn-export-csv" data-i18n="export_csv">Export CSV</button>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table" id="sites-table">
+            <thead>
+              <tr>
+                <th data-sort="region" data-i18n="col_region">Region</th>
+                <th data-sort="district" data-i18n="col_district">District</th>
+                <th data-sort="siteName" data-i18n="col_site">Site name</th>
+                <th data-sort="catchment" data-i18n="col_catchment">Catchment</th>
+                <th data-sort="siteCode" data-i18n="col_site_id">CCCM Site ID</th>
+                <th data-sort="activeAgencies" data-i18n="col_agencies">Active agencies</th>
+                <th data-i18n="col_sectors_available">Sectors available</th>
+                <th data-i18n="col_sectors_missing">Sectors missing</th>
+                <th data-sort="coverageScore" data-i18n="col_coverage_score">Coverage score</th>
+                <th data-sort="lastReport" data-i18n="col_last_report">Last report</th>
+                <th data-i18n="col_status">Data status</th>
+              </tr>
+            </thead>
+            <tbody id="sites-table-body"></tbody>
+          </table>
+        </div>
+        <div class="table-pagination" id="sites-table-pagination"></div>
+      </div>
+    </section>
+
+    <section id="section-maps" class="section">
+      <div class="card">
+        <div class="card-header">
+          <h2 data-i18n="h_maps">Service coverage maps</h2>
+          <select id="map-mode" class="control-select">
+            <option value="overall" data-i18n="map_overall">Overall coverage</option>
+            <option value="sector" data-i18n="map_sector">Selected sector</option>
+            <option value="agencies" data-i18n="map_agencies">Active agencies</option>
+            <option value="gaps" data-i18n="map_gaps">Priority gaps</option>
+            <option value="freshness" data-i18n="map_freshness">Data freshness</option>
+          </select>
+          <button class="btn btn-light" id="btn-reset-map" data-i18n="reset_map">Reset map</button>
+          <button class="btn btn-light" id="btn-fullscreen-map" data-i18n="fullscreen">⛶</button>
+        </div>
+        <div id="map-container" class="map-container"></div>
+        <div class="map-legend" id="map-legend"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Site profile drawer -->
+  <div class="drawer-overlay hidden" id="drawer-overlay"></div>
+  <aside class="drawer hidden" id="site-drawer">
+    <button class="drawer-close" id="drawer-close">×</button>
+    <div id="site-drawer-content"></div>
+  </aside>
+
+  <!-- Methodology / settings panel -->
+  <div class="drawer-overlay hidden" id="methodology-overlay"></div>
+  <aside class="drawer hidden" id="methodology-drawer">
+    <button class="drawer-close" id="methodology-close">×</button>
+    <div id="methodology-content"></div>
+  </aside>
+
+  <!-- Download menu -->
+  <div class="drawer-overlay hidden" id="download-overlay"></div>
+  <aside class="drawer drawer-narrow hidden" id="download-drawer">
+    <button class="drawer-close" id="download-close">×</button>
+    <h2 data-i18n="download_menu_title">Download data</h2>
+    <div class="download-menu">
+      <button class="btn btn-light btn-block" data-export="records" data-i18n="dl_records">Filtered service records</button>
+      <button class="btn btn-light btn-block" data-export="sites" data-i18n="dl_sites">Sites and coverage</button>
+      <button class="btn btn-light btn-block" data-export="agencies" data-i18n="dl_agencies">Agencies and activities</button>
+      <button class="btn btn-light btn-block" data-export="gaps" data-i18n="dl_gaps">Priority service gaps</button>
+      <button class="btn btn-light btn-block" data-export="quality" data-i18n="dl_quality">Data-quality issues</button>
+    </div>
+  </aside>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="assets/js/translations.js"></script>
+  <script src="assets/js/multiselect.js"></script>
+  <script src="assets/js/filters.js"></script>
+  <script src="assets/js/charts.js"></script>
+  <script src="assets/js/maps.js"></script>
+  <script src="assets/js/tables.js"></script>
+  <script src="assets/js/export.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

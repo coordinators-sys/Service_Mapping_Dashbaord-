@@ -1,0 +1,16 @@
+# Secrets — env vars are set in the Vercel project settings, never uploaded
+.env
+.env.*
+
+# Dev-time source data (only the generated data/ + geo/ files are needed at runtime)
+Masterlist/
+Somali Maps/
+logo/
+icons/
+build_data.py
+requirements-dev.txt
+scripts/
+
+# Local clutter
+__pycache__/
+*.pyc

@@ -1,0 +1,12 @@
+sector_name,sort_order
+CCCM,0
+General Protection,1
+Child Protection,2
+GBV,3
+HLP,4
+Food Security and Livelihoods,5
+Health,6
+Education,7
+Nutrition,8
+Shelter/NFI,9
+WASH,10

@@ -1,0 +1,15 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Vercel local project link
+.vercel/
+
+# Python
+__pycache__/
+*.pyc
+
+# Local clutter
+*.log
+.claude/

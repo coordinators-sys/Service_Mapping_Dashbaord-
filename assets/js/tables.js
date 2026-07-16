@@ -1,0 +1,179 @@
+// SERVICE COVERAGE BY LOCATION table: search, sort, pagination, badges,
+// row click opens the site profile drawer. Rendered entirely client-side —
+// dataset size (assessed sites in the current filter) is small enough that
+// server-side pagination isn't needed per the perf requirements' "keep
+// dependencies minimal" guidance.
+
+const TABLE_PAGE_SIZE = 25;
+let tableSortField = "region";
+let tableSortDir = 1;
+let tablePage = 1;
+
+// Values are [translation key, badge class]; label resolved via t() at render
+// time so badges follow the interface language.
+const MATCH_BADGE = {
+  matched_by_site_code: ["badge_matched_id", "badge-success"],
+  matched_by_official_name: ["badge_matched_name", "badge-success"],
+  matched_by_alternative_name: ["badge_matched_alt", "badge-success"],
+  matched_by_gps: ["badge_matched_gps", "badge-warning"],
+  probable_name_match: ["badge_needs_review", "badge-warning"],
+  unmatched: ["badge_unmatched", "badge-critical"],
+};
+
+function buildSiteTableRows(records) {
+  const bySite = new Map();
+  records.forEach((r) => {
+    const key = siteKey(r);
+    if (!key) return;
+    if (!bySite.has(key)) {
+      bySite.set(key, {
+        siteKey: key, siteName: siteLabel(r), region: r.region, district: r.district,
+        catchment: r.catchment, agencies: new Set(), statuses: {}, lastUpdated: r.lastUpdated,
+        matchStatus: r.matchStatus, dataQualityStatus: r.dataQualityStatus,
+      });
+    }
+    const entry = bySite.get(key);
+    if (r.agency && r.coverageStatus === "Yes") entry.agencies.add(r.agency);
+    if (r.sector) entry.statuses[r.sector] = entry.statuses[r.sector] === "Yes" ? "Yes" : r.coverageStatus;
+    if (r.lastUpdated && (!entry.lastUpdated || r.lastUpdated > entry.lastUpdated)) entry.lastUpdated = r.lastUpdated;
+  });
+
+  return Array.from(bySite.values()).map((s) => {
+    const available = SECTORS.filter((sec) => s.statuses[sec] === "Yes");
+    const missing = SECTORS.filter((sec) => s.statuses[sec] === "No");
+    const reportable = available.length + missing.length;
+    return {
+      ...s,
+      activeAgencies: s.agencies.size,
+      sectorsAvailable: available,
+      sectorsMissing: missing,
+      coverageScore: reportable ? Math.round((available.length / reportable) * 100) : null,
+    };
+  });
+}
+
+function renderSiteTable(records) {
+  const allRows = buildSiteTableRows(records);
+  const search = (document.getElementById("sites-table-search").value || "").toLowerCase().trim();
+  const rows = search
+    ? allRows.filter((r) =>
+        [r.region, r.district, r.siteName, r.catchment, r.siteKey, ...Array.from(r.agencies)]
+          .filter(Boolean).join(" ").toLowerCase().includes(search)
+      )
+    : allRows;
+
+  rows.sort((a, b) => {
+    const va = a[tableSortField], vb = b[tableSortField];
+    if (va === vb) return 0;
+    if (va === null || va === undefined) return 1;
+    if (vb === null || vb === undefined) return -1;
+    return va > vb ? tableSortDir : -tableSortDir;
+  });
+
+  document.getElementById("sites-table-count").textContent = t("n_assessed_sites", { n: allRows.length.toLocaleString() });
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / TABLE_PAGE_SIZE));
+  tablePage = Math.min(tablePage, totalPages);
+  const pageRows = rows.slice((tablePage - 1) * TABLE_PAGE_SIZE, tablePage * TABLE_PAGE_SIZE);
+
+  const tbody = document.getElementById("sites-table-body");
+  tbody.innerHTML = pageRows.map((r) => {
+    const [badgeKey, badgeClass] = MATCH_BADGE[r.matchStatus] || ["badge_needs_review", "badge-warning"];
+    const badgeLabel = t(badgeKey);
+    const rowClass = r.dataQualityStatus === "critical" ? "row-critical" : "";
+    return `<tr class="${rowClass}" data-site="${r.siteKey}">
+      <td>${r.region || ""}</td>
+      <td>${r.district || ""}</td>
+      <td>${r.siteName}</td>
+      <td>${r.catchment || "—"}</td>
+      <td>${r.siteKey}</td>
+      <td>${r.activeAgencies}</td>
+      <td>${r.sectorsAvailable.join(", ") || "—"}</td>
+      <td>${r.sectorsMissing.join(", ") || "—"}</td>
+      <td>${r.coverageScore === null ? "—" : r.coverageScore + "%"}</td>
+      <td>${r.lastUpdated ? r.lastUpdated.slice(0, 10) : "—"}</td>
+      <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:24px;">${t("no_sites_match")}</td></tr>`;
+
+  tbody.querySelectorAll("tr[data-site]").forEach((tr) => {
+    tr.addEventListener("click", () => openSiteDrawer(tr.dataset.site));
+  });
+
+  renderTablePagination(totalPages);
+}
+
+function renderTablePagination(totalPages) {
+  const container = document.getElementById("sites-table-pagination");
+  if (totalPages <= 1) { container.innerHTML = ""; return; }
+  let html = "";
+  for (let p = 1; p <= totalPages; p++) {
+    if (totalPages > 9 && p > 3 && p < totalPages - 2 && Math.abs(p - tablePage) > 1) {
+      if (p === 4 || p === totalPages - 3) html += `<span>…</span>`;
+      continue;
+    }
+    html += `<button class="${p === tablePage ? "active" : ""}" data-page="${p}">${p}</button>`;
+  }
+  container.innerHTML = html;
+  container.querySelectorAll("button[data-page]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      tablePage = parseInt(btn.dataset.page, 10);
+      renderSiteTable(filtered());
+    });
+  });
+}
+
+function setupTableInteractions() {
+  document.getElementById("sites-table-search").addEventListener("input", () => {
+    tablePage = 1;
+    renderSiteTable(filtered());
+  });
+  document.querySelectorAll("#sites-table th[data-sort]").forEach((th) => {
+    th.addEventListener("click", () => {
+      const field = th.dataset.sort;
+      if (tableSortField === field) tableSortDir *= -1;
+      else { tableSortField = field; tableSortDir = 1; }
+      renderSiteTable(filtered());
+    });
+  });
+}
+
+function openSiteDrawer(key) {
+  const rows = state.all.filter((r) => siteKey(r) === key);
+  if (!rows.length) return;
+  const first = rows[0];
+  const agencies = new Set(rows.filter((r) => r.coverageStatus === "Yes" && r.agency).map((r) => r.agency));
+  const available = SECTORS.filter((s) => rows.some((r) => r.sector === s && r.coverageStatus === "Yes"));
+  const missing = SECTORS.filter((s) => rows.some((r) => r.sector === s && r.coverageStatus === "No") && !available.includes(s));
+  const activities = rows.filter((r) => r.activity).map((r) => `${r.sector}: ${r.activity}`);
+  const reportable = available.length + missing.length;
+  const coverageScore = reportable ? Math.round((available.length / reportable) * 100) : null;
+  const [badgeKey] = MATCH_BADGE[first.matchStatus] || ["badge_needs_review"];
+  const lastUpdated = rows.map((r) => r.lastUpdated).filter(Boolean).sort().slice(-1)[0];
+
+  document.getElementById("site-drawer-content").innerHTML = `
+    <h2>${siteLabel(first)}</h2>
+    <p style="color:var(--text-muted)">${first.matchedSiteCode || first.siteCodeRaw || ""}</p>
+    <table class="data-table">
+      <tr><td>${t("drawer_region")}</td><td>${first.region || "—"}</td></tr>
+      <tr><td>${t("drawer_district")}</td><td>${first.district || "—"}</td></tr>
+      <tr><td>${t("drawer_catchment")}</td><td>${first.catchment || "—"}</td></tr>
+      <tr><td>${t("drawer_coordinates")}</td><td>${first.latitude ?? "—"}, ${first.longitude ?? "—"}</td></tr>
+      <tr><td>${t("drawer_coverage_score")}</td><td>${coverageScore === null ? "—" : coverageScore + "%"}</td></tr>
+      <tr><td>${t("drawer_active_agencies")}</td><td>${Array.from(agencies).join(", ") || t("drawer_none")}</td></tr>
+      <tr><td>${t("drawer_available")}</td><td>${available.map((s) => `<span class="drawer-sector">${sectorIcon(s, 16)} ${s}</span>`).join("") || "—"}</td></tr>
+      <tr><td>${t("drawer_missing")}</td><td>${missing.map((s) => `<span class="drawer-sector drawer-sector-missing">${sectorIcon(s, 16)} ${s}</span>`).join("") || "—"}</td></tr>
+      <tr><td>${t("drawer_matching")}</td><td>${t(badgeKey)}</td></tr>
+      <tr><td>${t("drawer_last_updated")}</td><td>${lastUpdated ? lastUpdated.slice(0, 10) : "—"}</td></tr>
+    </table>
+    <h3 style="font-size:0.85rem;text-transform:uppercase;color:var(--text-muted);margin-top:16px;">${t("drawer_activities")}</h3>
+    <ul>${activities.map((a) => `<li>${a}</li>`).join("") || `<li>${t("drawer_none_reported")}</li>`}</ul>
+  `;
+  document.getElementById("site-drawer").classList.remove("hidden");
+  document.getElementById("drawer-overlay").classList.remove("hidden");
+}
+
+function closeSiteDrawer() {
+  document.getElementById("site-drawer").classList.add("hidden");
+  document.getElementById("drawer-overlay").classList.add("hidden");
+}

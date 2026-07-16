@@ -1,0 +1,20 @@
+{
+  "framework": null,
+  "outputDirectory": ".",
+  "functions": {
+    "api/service-mapping.py": { "maxDuration": 30 }
+  },
+  "crons": [
+    { "path": "/api/service-mapping?refresh=true", "schedule": "0 3 * * *" }
+  ],
+  "headers": [
+    {
+      "source": "/geo/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }]
+    }
+  ]
+}
