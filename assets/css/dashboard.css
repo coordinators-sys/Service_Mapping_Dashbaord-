@@ -148,9 +148,20 @@ body {
   display: grid;
   grid-template-columns: 1fr;
   gap: 18px;
+  /* Cards size to their own content instead of stretching to the tallest
+     sibling — a short list next to a long one no longer leaves a large
+     empty area at the bottom of the shorter card. */
+  align-items: start;
 }
 @media (min-width: 992px) {
   .chart-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Long list panels scroll inside their card rather than growing unbounded */
+#priority-sites-list,
+#top-underserved-districts {
+  max-height: 520px;
+  overflow-y: auto;
 }
 .chart-wrap { position: relative; height: 340px; }
 .chart-wrap-tall { height: 460px; }

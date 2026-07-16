@@ -29,14 +29,84 @@ const SECTOR_ICONS = {
   "WASH": "assets/icons/wash.png",
 };
 
+// "?v=2" busts the day-long browser/CDN cache of the 404s these paths
+// returned before the .vercelignore fix — without it, anyone who visited
+// during the broken window keeps seeing broken-image glyphs for 24h.
+// onerror hides the img entirely so a failed icon never shows a glyph.
+const ICON_VERSION = "2";
+
 function sectorIcon(sector, size = 18) {
   const src = SECTOR_ICONS[sector];
-  return src ? `<img src="${src}" alt="" width="${size}" height="${size}" class="sector-icon" loading="lazy" />` : "";
+  return src
+    ? `<img src="${src}?v=${ICON_VERSION}" alt="" width="${size}" height="${size}" class="sector-icon" loading="lazy" onerror="this.style.display='none'" />`
+    : "";
 }
 
 // Clean look: no grid lines on any chart; keep the axis border only.
 Chart.defaults.scale.grid.display = false;
 Chart.defaults.scale.border = Object.assign({}, Chart.defaults.scale.border, { display: true });
+
+// Value labels on bars/points — tiny custom plugin instead of pulling in
+// chartjs-plugin-datalabels (keeps dependencies minimal per the perf
+// requirements). Opt in per chart via options.plugins.barValues:
+//   { format: (v) => "58%" }            -> label at the end of each bar/point
+//   { format: ..., mode: "center" }     -> label centered inside each stacked segment
+function _chartTextColor() {
+  const v = getComputedStyle(document.documentElement).getPropertyValue("--text").trim();
+  return v || "#26343A";
+}
+
+const barValueLabels = {
+  id: "barValueLabels",
+  afterDatasetsDraw(chart) {
+    const opts = chart.options.plugins && chart.options.plugins.barValues;
+    if (!opts) return;
+    const horizontal = chart.options.indexAxis === "y";
+    const center = opts.mode === "center";
+    const { ctx } = chart;
+    ctx.save();
+    ctx.font = '600 11px "Segoe UI", Roboto, sans-serif';
+
+    chart.data.datasets.forEach((ds, di) => {
+      const meta = chart.getDatasetMeta(di);
+      if (meta.hidden) return;
+      meta.data.forEach((el, i) => {
+        const value = ds.data[i];
+        if (value == null || (center && value === 0)) return;
+        const label = opts.format ? opts.format(value) : String(value);
+
+        if (center) {
+          // Inside stacked segments, only when the segment is wide enough.
+          const props = el.getProps(["x", "y", "base", "width", "height"], true);
+          const segmentLength = horizontal ? Math.abs(props.x - props.base) : Math.abs(props.y - props.base);
+          if (segmentLength < 24) return;
+          ctx.fillStyle = "#fff";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          const cx = horizontal ? (props.x + props.base) / 2 : props.x;
+          const cy = horizontal ? props.y : (props.y + props.base) / 2;
+          ctx.fillText(label, cx, cy);
+        } else {
+          ctx.fillStyle = _chartTextColor();
+          if (horizontal) {
+            ctx.textAlign = "left";
+            ctx.textBaseline = "middle";
+            ctx.fillText(label, el.x + 5, el.y);
+          } else {
+            ctx.textAlign = "center";
+            ctx.textBaseline = "bottom";
+            ctx.fillText(label, el.x, el.y - 4);
+          }
+        }
+      });
+    });
+    ctx.restore();
+  },
+};
+Chart.register(barValueLabels);
+
+const PCT_LABEL = { format: (v) => `${Math.round(v)}%` };
+const COUNT_LABEL = { format: (v) => String(v) };
 
 function destroyChart(id) {
   const canvas = document.getElementById(id);
@@ -210,9 +280,11 @@ function renderSectorBarChart(records, sortMode) {
     options: {
       indexAxis: "y",
       responsive: true, maintainAspectRatio: false,
+      layout: { padding: { right: 46 } },
       scales: { x: { max: 100, title: { display: true, text: t("chart_coverage_pct") } } },
       plugins: {
         legend: { display: false },
+        barValues: PCT_LABEL,
         tooltip: {
           callbacks: {
             label: (ctx2) => {
@@ -248,7 +320,9 @@ function renderCoverageTrendChart(records) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 18 } },
       scales: { y: { min: 0, max: 100 } },
+      plugins: { barValues: PCT_LABEL },
       onClick: (evt, elements) => {
         if (!elements.length) return;
         const period = data[elements[0].index].period;
@@ -267,7 +341,8 @@ function renderAgenciesBySectorChart(records) {
     data: { labels: data.map((d) => d.sector), datasets: [{ label: t("chart_active_agencies"), data: data.map((d) => d.activeAgencies), backgroundColor: COLORS.secondaryTeal }] },
     options: {
       indexAxis: "y", responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      layout: { padding: { right: 30 } },
+      plugins: { legend: { display: false }, barValues: COUNT_LABEL },
       onClick: (evt, elements) => {
         if (!elements.length) return;
         toggleFilterValue("sector", data[elements[0].index].sector, evt.native && (evt.native.ctrlKey || evt.native.metaKey));
@@ -293,6 +368,7 @@ function renderServiceAvailabilityChart(records) {
     options: {
       indexAxis: "y", responsive: true, maintainAspectRatio: false,
       scales: { x: { stacked: true }, y: { stacked: true } },
+      plugins: { barValues: { format: (v) => v.toLocaleString(), mode: "center" } },
       onClick: (evt, elements) => {
         if (!elements.length) return;
         toggleFilterValue("sector", data[elements[0].index].sector, evt.native && (evt.native.ctrlKey || evt.native.metaKey));
@@ -310,7 +386,8 @@ function renderAgenciesByDistrictChart(records) {
     data: { labels: data.map((d) => d.district), datasets: [{ label: t("chart_active_agencies"), data: data.map((d) => d.activeAgencies), backgroundColor: COLORS.primary }] },
     options: {
       indexAxis: "y", responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      layout: { padding: { right: 30 } },
+      plugins: { legend: { display: false }, barValues: COUNT_LABEL },
       onClick: (evt, elements) => {
         if (!elements.length) return;
         toggleFilterValue("district", data[elements[0].index].district, evt.native && (evt.native.ctrlKey || evt.native.metaKey));
@@ -328,7 +405,8 @@ function renderSitesByAgencyChart(records) {
     data: { labels: data.map((d) => d.agency), datasets: [{ label: t("chart_sites_covered"), data: data.map((d) => d.sitesCovered), backgroundColor: COLORS.orange }] },
     options: {
       indexAxis: "y", responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      layout: { padding: { right: 30 } },
+      plugins: { legend: { display: false }, barValues: COUNT_LABEL },
       onClick: (evt, elements) => {
         if (!elements.length) return;
         toggleFilterValue("agency", data[elements[0].index].agency, evt.native && (evt.native.ctrlKey || evt.native.metaKey));
@@ -535,8 +613,9 @@ function renderCatchments(records) {
     },
     options: {
       indexAxis: "y", responsive: true, maintainAspectRatio: false,
+      layout: { padding: { right: 46 } },
       scales: { x: { max: 100, title: { display: true, text: t("chart_coverage_pct") } } },
-      plugins: { legend: { display: false } },
+      plugins: { legend: { display: false }, barValues: PCT_LABEL },
       onClick: (evt, elements) => {
         if (!elements.length) return;
         toggleFilterValue("catchment", chartData[elements[0].index].catchment, evt.native && (evt.native.ctrlKey || evt.native.metaKey));
