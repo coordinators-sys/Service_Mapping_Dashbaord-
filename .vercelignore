@@ -2,14 +2,18 @@
 .env
 .env.*
 
-# Dev-time source data (only the generated data/ + geo/ files are needed at runtime)
-Masterlist/
-Somali Maps/
-logo/
-icons/
-build_data.py
-requirements-dev.txt
-scripts/
+# Dev-time source data (only the generated data/ + geo/ files, plus
+# assets/icons/ + assets/images/, are needed at runtime). Leading "/" anchors
+# these to the repo root — without it, "icons/" and "logo/" also matched (and
+# wrongly excluded) assets/icons/ and assets/logo/, breaking the sector icons
+# in production.
+/Masterlist/
+/Somali Maps/
+/logo/
+/icons/
+/build_data.py
+/requirements-dev.txt
+/scripts/
 
 # Local clutter
 __pycache__/
