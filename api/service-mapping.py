@@ -55,7 +55,12 @@ class handler(BaseHTTPRequestHandler):
 
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=600")
+        # Only cache SUCCESS. A cached 500 (s-maxage) kept serving the old
+        # crash from the CDN for 5 minutes after each fix was deployed.
+        if status == 200:
+            self.send_header("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=600")
+        else:
+            self.send_header("Cache-Control", "no-store")
         self.send_header("Access-Control-Allow-Origin", "*")
         if use_gzip:
             self.send_header("Content-Encoding", "gzip")

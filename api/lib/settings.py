@@ -33,12 +33,19 @@ _load_dotenv_file()
 
 
 def _env(name: str, default: str = "") -> str:
-    """Env read with whitespace stripping. Values pasted into hosting UIs
-    (e.g. Vercel's env-var form) often carry a trailing newline — which made
-    httpx reject KOBO_BASE_URL with InvalidURL in production. Stripping here
-    protects every consumer at once, and quotes are removed for the same
-    copy/paste reason as in the .env loader above."""
-    return os.environ.get(name, default).strip().strip('"').strip("'")
+    """Env read hardened against copy/paste artifacts from hosting UIs
+    (e.g. Vercel's env-var form): surrounding whitespace/quotes, and
+    multi-line values (double-pasted lines put a literal '\\n' INSIDE the
+    stored value, which strip() alone can't fix — that made httpx reject
+    KOBO_BASE_URL with InvalidURL in production). Every config value this
+    app uses is single-line by nature, so taking the first non-empty line
+    is always correct here."""
+    raw = os.environ.get(name, default)
+    for line in raw.splitlines():
+        line = line.strip().strip('"').strip("'")
+        if line:
+            return line
+    return ""
 
 
 KOBO_BASE_URL = _env("KOBO_BASE_URL", "https://kf.kobo.iom.int")
