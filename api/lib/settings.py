@@ -31,16 +31,26 @@ def _load_dotenv_file() -> None:
 
 _load_dotenv_file()
 
-KOBO_BASE_URL = os.environ.get("KOBO_BASE_URL", "https://kf.kobo.iom.int")
-KOBO_ASSET_UID = os.environ.get("KOBO_ASSET_UID", "")
-KOBO_API_TOKEN = os.environ.get("KOBO_API_TOKEN", "")
-CACHE_TTL_SECONDS = int(os.environ.get("CACHE_TTL_SECONDS", "300"))
-SITE_MATCH_DISTANCE_METERS = float(os.environ.get("SITE_MATCH_DISTANCE_METERS", "150"))
-APP_ENV = os.environ.get("APP_ENV", "development")
+
+def _env(name: str, default: str = "") -> str:
+    """Env read with whitespace stripping. Values pasted into hosting UIs
+    (e.g. Vercel's env-var form) often carry a trailing newline — which made
+    httpx reject KOBO_BASE_URL with InvalidURL in production. Stripping here
+    protects every consumer at once, and quotes are removed for the same
+    copy/paste reason as in the .env loader above."""
+    return os.environ.get(name, default).strip().strip('"').strip("'")
+
+
+KOBO_BASE_URL = _env("KOBO_BASE_URL", "https://kf.kobo.iom.int")
+KOBO_ASSET_UID = _env("KOBO_ASSET_UID")
+KOBO_API_TOKEN = _env("KOBO_API_TOKEN")
+CACHE_TTL_SECONDS = int(_env("CACHE_TTL_SECONDS", "300"))
+SITE_MATCH_DISTANCE_METERS = float(_env("SITE_MATCH_DISTANCE_METERS", "150"))
+APP_ENV = _env("APP_ENV", "development")
 
 # Optional secondary data source: IOM's ZiteManager service-provider contact
 # registry (a different system from Kobo — see api/lib/zite_client.py).
-ZITEMANAGER_REPORT_URL = os.environ.get("ZITEMANAGER_REPORT_URL", "")
+ZITEMANAGER_REPORT_URL = _env("ZITEMANAGER_REPORT_URL")
 
 SECTORS = (
     "CCCM",
