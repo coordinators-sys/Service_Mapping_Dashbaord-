@@ -11,6 +11,7 @@ import gzip
 import json
 import os
 import sys
+import traceback
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
@@ -32,7 +33,11 @@ class handler(BaseHTTPRequestHandler):
         try:
             json_body, gzip_body = get_payload_encoded(force_refresh=force_refresh)
             status = 200
-        except Exception:  # last-resort guard — never leak a stack trace or the token
+        except Exception as exc:  # last-resort guard — never leak the traceback or the token to the CLIENT
+            # ...but DO print it to stderr, which Vercel captures in Logs — otherwise
+            # a real server-side crash is invisible and unfixable from the outside.
+            print(f"[service-mapping] request failed: {exc!r}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
             json_body = json.dumps({"error": "internal_error", "message": "Failed to build service-mapping payload."}).encode("utf-8")
             gzip_body = gzip.compress(json_body)
             status = 500
