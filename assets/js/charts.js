@@ -596,20 +596,62 @@ function renderPriorityGaps(records) {
     ? topDistricts.map(([d, v]) => `<div class="district-list-item"><strong>${d}</strong> <span class="badge badge-critical">${t("n_sites_3gaps", { n: v.gaps3 })}</span></div>`).join("")
     : `<div class="banner banner-info">${t("no_district_gaps")}</div>`;
 
-  const priority = siteProfiles.filter((s) => s.gapCount > 0).sort((a, b) => b.gapCount - a.gapCount).slice(0, 25);
-  document.getElementById("priority-sites-list").innerHTML = priority.length
-    ? priority.map((s) => `
-        <div class="priority-list-item" data-site="${s.siteKey}">
-          <strong>${s.siteName}</strong> (${s.siteKey})
-          <span class="badge ${s.gapCount >= 3 ? "badge-critical" : "badge-warning"}">${t("n_gaps", { n: s.gapCount })}</span>
-          <div style="color:var(--text-muted)">${s.district}, ${s.region}</div>
-          <div>${t("missing_label", { list: s.gaps.join(", ") || "—" })}</div>
-        </div>`).join("")
-    : `<div class="banner banner-info">${t("no_priority_gaps")}</div>`;
+  // All sites with a confirmed gap, most-critical first. Kept in module scope
+  // so the "View all" toggle can re-render more without recomputing.
+  _priorityAll = siteProfiles.filter((s) => s.gapCount > 0).sort((a, b) => b.gapCount - a.gapCount);
+  _priorityShowAll = false;
+  renderPrioritySitesTable();
+}
 
-  document.querySelectorAll("#priority-sites-list [data-site]").forEach((el) => {
-    el.addEventListener("click", () => openSiteDrawer(el.dataset.site));
+let _priorityAll = [];
+let _priorityShowAll = false;
+const PRIORITY_TABLE_TOP = 10;
+
+// Compact top-10 table. Instead of listing all 11 missing sectors inline, show
+// "N sectors missing" — the full list lives in the row tooltip and the site
+// drawer, per the brief.
+function renderPrioritySitesTable() {
+  const container = document.getElementById("priority-sites-list");
+  if (!_priorityAll.length) {
+    container.innerHTML = `<div class="banner banner-info">${t("no_priority_gaps")}</div>`;
+    return;
+  }
+  const rows = _priorityShowAll ? _priorityAll : _priorityAll.slice(0, PRIORITY_TABLE_TOP);
+  const body = rows
+    .map((s) => {
+      const missing = s.gaps.join(", ") || "—";
+      const badgeClass = s.isCritical ? "badge-critical" : "badge-warning";
+      return `<tr data-site="${escapeHtml(s.siteKey)}" title="${escapeHtml(t("missing_label", { list: missing }))}">
+        <td><strong>${escapeHtml(s.siteName)}</strong><div class="cell-sub">${escapeHtml(s.siteKey)}</div></td>
+        <td>${escapeHtml(s.district || "—")}</td>
+        <td><span class="badge ${badgeClass}">${t("n_sectors_missing", { n: s.gapCount })}</span></td>
+      </tr>`;
+    })
+    .join("");
+
+  const toggle =
+    _priorityAll.length > PRIORITY_TABLE_TOP
+      ? `<button type="button" class="btn btn-light btn-sm" id="priority-view-all">${
+          _priorityShowAll ? t("show_top", { n: PRIORITY_TABLE_TOP }) : t("view_all", { n: _priorityAll.length })
+        }</button>`
+      : "";
+
+  container.innerHTML = `
+    <table class="data-table compact-table">
+      <thead><tr>
+        <th data-i18n="col_site">${t("col_site")}</th>
+        <th data-i18n="col_district">${t("col_district")}</th>
+        <th>${t("col_gaps")}</th>
+      </tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+    <div class="table-foot">${toggle}</div>`;
+
+  container.querySelectorAll("tr[data-site]").forEach((tr) => {
+    tr.addEventListener("click", () => openSiteDrawer(tr.dataset.site));
   });
+  const viewAll = container.querySelector("#priority-view-all");
+  if (viewAll) viewAll.addEventListener("click", () => { _priorityShowAll = !_priorityShowAll; renderPrioritySitesTable(); });
 }
 
 function renderCoverage(records) {

@@ -200,9 +200,50 @@ function closeMethodology() {
   document.getElementById("methodology-overlay").classList.add("hidden");
 }
 
+// Sticky section-nav: highlight the section in view, and keep the URL hash in
+// sync without the default jump (scroll-margin-top on .section handles the
+// sticky-bar offset). Uses IntersectionObserver — cheap, no scroll handler.
+function setupSectionNav() {
+  const links = Array.from(document.querySelectorAll(".section-nav-link"));
+  if (!links.length) return;
+  const byId = new Map(links.map((l) => [l.getAttribute("href").slice(1), l]));
+  const sections = links
+    .map((l) => document.getElementById(l.getAttribute("href").slice(1)))
+    .filter(Boolean);
+
+  const setActive = (id) => {
+    links.forEach((l) => l.classList.toggle("active", l.getAttribute("href").slice(1) === id));
+    const active = byId.get(id);
+    if (active) active.scrollIntoView({ block: "nearest", inline: "nearest" });
+  };
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (visible[0]) setActive(visible[0].target.id);
+    },
+    { rootMargin: "-130px 0px -55% 0px", threshold: 0 }
+  );
+  sections.forEach((s) => observer.observe(s));
+
+  links.forEach((link) => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      const id = link.getAttribute("href").slice(1);
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        history.replaceState(null, "", `#${id}`); // update hash without a second jump
+        setActive(id);
+      }
+    });
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   initSlicers();
   setupEventListeners();
+  setupSectionNav();
   loadData();
 });

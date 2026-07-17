@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="assets/css/dashboard.css?v=5" />
+  <link rel="stylesheet" href="assets/css/dashboard.css?v=7" />
 </head>
 <body>
   <header class="app-header">
@@ -96,6 +96,18 @@
     </div>
   </div>
   <div class="filter-overlay" id="filter-overlay" hidden></div>
+
+  <nav class="section-nav" id="section-nav" aria-label="Dashboard sections">
+    <div class="container section-nav-inner">
+      <a href="#section-key-figures" class="section-nav-link" data-i18n="nav_overview">Overview</a>
+      <a href="#section-coverage" class="section-nav-link" data-i18n="nav_coverage">Coverage</a>
+      <a href="#section-maps" class="section-nav-link" data-i18n="nav_maps">Map</a>
+      <a href="#section-agencies" class="section-nav-link" data-i18n="nav_agencies">Agencies</a>
+      <a href="#section-priority" class="section-nav-link" data-i18n="nav_priority">Priority gaps</a>
+      <a href="#section-catchments" class="section-nav-link" data-i18n="nav_catchments">Catchments</a>
+      <a href="#section-sites" class="section-nav-link" data-i18n="nav_sites">Sites</a>
+    </div>
+  </nav>
 
   <main class="container">
     <div id="api-error-banner" class="banner banner-warning hidden"></div>
@@ -275,13 +287,13 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script src="assets/js/translations.js?v=5"></script>
-  <script src="assets/js/multiselect.js?v=5"></script>
-  <script src="assets/js/filters.js?v=5"></script>
-  <script src="assets/js/charts.js?v=5"></script>
-  <script src="assets/js/maps.js?v=5"></script>
-  <script src="assets/js/tables.js?v=5"></script>
-  <script src="assets/js/export.js?v=5"></script>
-  <script src="assets/js/app.js?v=5"></script>
+  <script src="assets/js/translations.js?v=7"></script>
+  <script src="assets/js/multiselect.js?v=7"></script>
+  <script src="assets/js/filters.js?v=7"></script>
+  <script src="assets/js/charts.js?v=7"></script>
+  <script src="assets/js/maps.js?v=7"></script>
+  <script src="assets/js/tables.js?v=7"></script>
+  <script src="assets/js/export.js?v=7"></script>
+  <script src="assets/js/app.js?v=7"></script>
 </body>
 </html>
