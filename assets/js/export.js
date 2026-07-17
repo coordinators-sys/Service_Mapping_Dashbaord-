@@ -219,7 +219,7 @@ function exportExecutivePdf() {
   </div>
 
   <h2>Automated insights</h2>
-  <ul>${insights.map((i) => `<li>${i}</li>`).join("")}</ul>
+  <ul>${insights.map((i) => `<li>${escapeHtml(i)}</li>`).join("")}</ul>
 
   <h2>Sector coverage</h2>
   <table><thead><tr><th>Sector</th><th>Covered</th><th>Not covered</th><th>Unknown</th><th>Assessed</th><th>Coverage</th></tr></thead>
@@ -227,7 +227,7 @@ function exportExecutivePdf() {
 
   <h2>Top priority sites</h2>
   <table><thead><tr><th>Site</th><th>District</th><th>Catchment</th><th>Confirmed gaps</th><th>Critical</th></tr></thead>
-  <tbody>${topPriority.map((s) => `<tr><td>${s.siteName} (${s.siteKey})</td><td>${s.district || "—"}</td><td>${s.catchment || "—"}</td><td>${s.gapCount}</td><td>${s.isCritical ? "yes" : ""}</td></tr>`).join("")}</tbody></table>
+  <tbody>${topPriority.map((s) => `<tr><td>${escapeHtml(s.siteName)} (${escapeHtml(s.siteKey)})</td><td>${escapeHtml(s.district || "—")}</td><td>${escapeHtml(friendlyCatchment(s.catchment) || "—")}</td><td>${s.gapCount}</td><td>${s.isCritical ? "yes" : ""}</td></tr>`).join("")}</tbody></table>
 
   <div class="footer">
     Definitions: Covered = at least one confirmed active provider; Not covered = explicitly confirmed unavailable;
@@ -236,6 +236,11 @@ function exportExecutivePdf() {
     Figures reflect partner-reported data for the filters above and may change as reporting is updated.
     CCCM Cluster Somalia — service-mapping-dashboard.cccmclustersomalia.org
   </div>
-  <script>window.onload = function () { window.print(); };</` + `script></body></html>`);
+  </body></html>`);
   win.document.close();
+  // Trigger print from the opener (CSP-safe: the popup inherits our policy,
+  // which forbids inline scripts).
+  const doPrint = () => { try { win.focus(); win.print(); } catch (err) {} };
+  if (win.document.readyState === "complete") setTimeout(doPrint, 250);
+  else win.addEventListener("load", () => setTimeout(doPrint, 250));
 }

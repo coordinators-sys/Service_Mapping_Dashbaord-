@@ -53,7 +53,8 @@ class handler(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=600")
         else:
             self.send_header("Cache-Control", "no-store")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", "*")  # public read-only aggregate data
+        self.send_header("X-Content-Type-Options", "nosniff")
         if use_gzip:
             self.send_header("Content-Encoding", "gzip")
         self.send_header("Content-Length", str(len(body)))

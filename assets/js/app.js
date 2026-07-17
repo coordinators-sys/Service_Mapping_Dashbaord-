@@ -265,6 +265,15 @@ function setupSectionNav() {
   });
 }
 
+// CSP-safe replacement for inline onerror attributes on sector icons:
+// a delegated capture-phase listener hides any icon that fails to load.
+document.addEventListener("error", (e) => {
+  const el = e.target;
+  if (el && el.tagName === "IMG" && el.classList && el.classList.contains("sector-icon")) {
+    el.style.display = "none";
+  }
+}, true);
+
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   initSlicers();

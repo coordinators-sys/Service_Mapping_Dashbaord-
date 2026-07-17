@@ -109,7 +109,7 @@ function renderGeography(records) {
       const catchments = L.geoJSON(state.geo.catchments, {
         style: { color: "#EC6B4D", weight: 1.5, dashArray: "4 3", fillOpacity: 0.04 },
         onEachFeature: (feature, layer) => {
-          layer.bindTooltip(`${feature.properties.name} (${feature.properties.district || ""})`);
+          layer.bindTooltip(`${escapeHtml(feature.properties.name)} (${escapeHtml(feature.properties.district || "")})`);
           layer.on("mouseover", () => layer.setStyle({ weight: 3, fillOpacity: 0.15 }));
           layer.on("mouseout", () => layer.setStyle({ weight: 1.5, fillOpacity: 0.04 }));
           layer.on("click", () => toggleFilterValue("catchment", feature.properties.name, false));
@@ -132,7 +132,7 @@ function renderGeography(records) {
       const marker = L.circleMarker([point.lat, point.lon], {
         radius: 6, color, fillColor: color, fillOpacity: 0.85, weight: 1,
       });
-      marker.bindTooltip(point.name);
+      marker.bindTooltip(escapeHtml(point.name));
       marker.on("click", () => openSiteDrawer(point.key));
       marker.addTo(state.maps.markerLayer);
     });

@@ -38,7 +38,7 @@ const ICON_VERSION = "2";
 function sectorIcon(sector, size = 18) {
   const src = SECTOR_ICONS[sector];
   return src
-    ? `<img src="${src}?v=${ICON_VERSION}" alt="" width="${size}" height="${size}" class="sector-icon" loading="lazy" onerror="this.style.display='none'" />`
+    ? `<img src="${src}?v=${ICON_VERSION}" alt="" width="${size}" height="${size}" class="sector-icon" loading="lazy" />`
     : "";
 }
 
@@ -295,7 +295,7 @@ function generateInsights(sectorCoverage, siteProfiles, trendInsight) {
   });
   const topDistrict = Array.from(byDistrict.entries()).sort((a, b) => b[1] - a[1])[0];
   if (topDistrict) {
-    insights.push(t("insight_district", { district: strong(topDistrict[0]), n: strong(topDistrict[1]) }));
+    insights.push(t("insight_district", { district: strong(escapeHtml(topDistrict[0])), n: strong(topDistrict[1]) }));
   }
   if (trendInsight) insights.push(...(Array.isArray(trendInsight) ? trendInsight : [trendInsight]));
   if (!insights.length) insights.push(t("insight_none"));
@@ -640,7 +640,7 @@ function renderPriorityGaps(records) {
     .sort((a, b) => b[1].gaps3 - a[1].gaps3)
     .slice(0, 10);
   document.getElementById("top-underserved-districts").innerHTML = topDistricts.length
-    ? topDistricts.map(([d, v]) => `<div class="district-list-item"><strong>${d}</strong> <span class="badge badge-critical">${t("n_sites_3gaps", { n: v.gaps3 })}</span></div>`).join("")
+    ? topDistricts.map(([d, v]) => `<div class="district-list-item"><strong>${escapeHtml(d)}</strong> <span class="badge badge-critical">${t("n_sites_3gaps", { n: v.gaps3 })}</span></div>`).join("")
     : `<div class="banner banner-info">${t("no_district_gaps")}</div>`;
 
   // All sites with a confirmed gap, most-critical first. Kept in module scope
@@ -839,8 +839,8 @@ function renderCatchments(records) {
 
   tbody.innerHTML = data.map((d) => `
     <tr data-catchment="${d.catchment}">
-      <td title="${escapeHtml(d.catchment)}"><strong>${friendlyCatchment(d.catchment)}</strong></td>
-      <td>${d.district || "—"}</td>
+      <td title="${escapeHtml(d.catchment)}"><strong>${escapeHtml(friendlyCatchment(d.catchment))}</strong></td>
+      <td>${escapeHtml(d.district || "—")}</td>
       <td>${d.sitesAssessed}</td>
       <td>${d.activeAgencies}</td>
       <td>${d.coveragePct === null ? "—" : d.coveragePct.toFixed(0) + "%"}</td>

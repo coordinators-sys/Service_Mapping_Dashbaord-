@@ -88,12 +88,12 @@ function renderSiteTable(records) {
     const [badgeKey, badgeClass] = MATCH_BADGE[r.matchStatus] || ["badge_needs_review", "badge-warning"];
     const badgeLabel = t(badgeKey);
     const rowClass = r.dataQualityStatus === "critical" ? "row-critical" : "";
-    return `<tr class="${rowClass}" data-site="${r.siteKey}">
-      <td>${r.region || ""}</td>
-      <td>${r.district || ""}</td>
-      <td>${r.siteName}</td>
-      <td>${r.catchment || "—"}</td>
-      <td>${r.siteKey}</td>
+    return `<tr class="${rowClass}" data-site="${escapeHtml(r.siteKey)}">
+      <td>${escapeHtml(r.region || "")}</td>
+      <td>${escapeHtml(r.district || "")}</td>
+      <td>${escapeHtml(r.siteName)}</td>
+      <td>${escapeHtml(friendlyCatchment(r.catchment) || "—")}</td>
+      <td>${escapeHtml(r.siteKey)}</td>
       <td>${r.activeAgencies}</td>
       <td>${r.sectorsAvailable.join(", ") || "—"}</td>
       <td>${r.sectorsMissing.join(", ") || "—"}</td>
@@ -186,8 +186,8 @@ function openSiteDrawer(key) {
   const nextKey = idx >= 0 && idx < _drawerSiteOrder.length - 1 ? _drawerSiteOrder[idx + 1] : null;
 
   document.getElementById("site-drawer-content").innerHTML = `
-    <h2>${siteLabel(first)}</h2>
-    <p style="color:var(--text-muted)">${first.matchedSiteCode || first.siteCodeRaw || ""}</p>
+    <h2>${escapeHtml(siteLabel(first))}</h2>
+    <p style="color:var(--text-muted)">${escapeHtml(first.matchedSiteCode || first.siteCodeRaw || "")}</p>
     <div class="drawer-actions">
       <button type="button" class="btn btn-light btn-sm" id="drawer-copy-id">${t("drawer_copy_id")}</button>
       ${first.latitude != null ? `<button type="button" class="btn btn-light btn-sm" id="drawer-zoom">${t("drawer_zoom")}</button>` : ""}
@@ -197,12 +197,12 @@ function openSiteDrawer(key) {
       </span>
     </div>
     <table class="data-table">
-      <tr><td>${t("drawer_region")}</td><td>${first.region || "—"}</td></tr>
-      <tr><td>${t("drawer_district")}</td><td>${first.district || "—"}</td></tr>
-      <tr><td>${t("drawer_catchment")}</td><td>${first.catchment || "—"}</td></tr>
+      <tr><td>${t("drawer_region")}</td><td>${escapeHtml(first.region || "—")}</td></tr>
+      <tr><td>${t("drawer_district")}</td><td>${escapeHtml(first.district || "—")}</td></tr>
+      <tr><td>${t("drawer_catchment")}</td><td>${escapeHtml(friendlyCatchment(first.catchment) || "—")}</td></tr>
       <tr><td>${t("drawer_coordinates")}</td><td>${first.latitude ?? "—"}, ${first.longitude ?? "—"}</td></tr>
       <tr><td>${t("drawer_coverage_score")}</td><td>${coverageScore === null ? "—" : coverageScore + "%"}</td></tr>
-      <tr><td>${t("drawer_active_agencies")}</td><td>${agenciesBySector.map((x) => `<div>${x}</div>`).join("") || Array.from(agencies).join(", ") || t("drawer_none")}</td></tr>
+      <tr><td>${t("drawer_active_agencies")}</td><td>${agenciesBySector.map((x) => `<div>${escapeHtml(x)}</div>`).join("") || escapeHtml(Array.from(agencies).join(", ")) || t("drawer_none")}</td></tr>
       <tr><td>${t("drawer_available")}</td><td>${available.map((s) => `<span class="drawer-sector">${sectorIcon(s, 16)} ${s}</span>`).join("") || "—"}</td></tr>
       <tr><td>${t("drawer_missing")}</td><td>${missing.map((s) => `<span class="drawer-sector drawer-sector-missing">${sectorIcon(s, 16)} ${s}</span>`).join("") || "—"}</td></tr>
       <tr><td>${t("drawer_unknown")}</td><td>${unknown.map((s) => `<span class="drawer-sector drawer-sector-unknown">${sectorIcon(s, 16)} ${s}</span>`).join("") || "—"}</td></tr>
@@ -210,7 +210,7 @@ function openSiteDrawer(key) {
       <tr><td>${t("drawer_last_updated")}</td><td>${lastUpdated ? lastUpdated.slice(0, 10) : "—"}</td></tr>
     </table>
     <h3 style="font-size:0.85rem;text-transform:uppercase;color:var(--text-muted);margin-top:16px;">${t("drawer_activities")}</h3>
-    <ul>${activities.map((a) => `<li>${a}</li>`).join("") || `<li>${t("drawer_none_reported")}</li>`}</ul>
+    <ul>${activities.map((a) => `<li>${escapeHtml(a)}</li>`).join("") || `<li>${t("drawer_none_reported")}</li>`}</ul>
   `;
 
   document.getElementById("drawer-copy-id").addEventListener("click", (e) => {
