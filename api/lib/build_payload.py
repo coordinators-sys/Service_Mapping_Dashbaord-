@@ -131,6 +131,22 @@ def _fetch_zite_records() -> list[dict]:
     return records
 
 
+def _master_sites_summary() -> dict:
+    """Master-list denominators for the reporting-completeness section.
+
+    NOTE on methodology: this is the FULL master list, not a per-round
+    "expected to report" cohort — no reporting-round scope configuration
+    exists yet, so the frontend labels the rate as "share of master-list
+    sites reported" rather than claiming an expected-reporting rate.
+    """
+    index = get_master_site_index(_MASTER_SITES_CSV)
+    by_district: dict[str, int] = {}
+    for site in index.sites:
+        d = site.district or "—"
+        by_district[d] = by_district.get(d, 0) + 1
+    return {"total": len(index.sites), "byDistrict": by_district}
+
+
 def _summarize(records: list[dict]) -> dict:
     assessed_sites = {r["matchedSiteCode"] or r["siteCodeRaw"] for r in records if r.get("matchedSiteCode") or r.get("siteCodeRaw")}
     active_agencies = {r["agency"] for r in records if r.get("agency") and r.get("coverageStatus") == "Yes"}
@@ -196,6 +212,7 @@ def _build_fresh_payload() -> dict:
         return {
             "records": records,
             "summary": _summarize(records),
+            "masterSites": _master_sites_summary(),
             "generatedAt": dt.datetime.utcnow().isoformat() + "Z",
             "source": "+".join(sources_used),
         }
@@ -203,6 +220,7 @@ def _build_fresh_payload() -> dict:
         return {
             "records": [],
             "summary": _summarize([]),
+            "masterSites": _master_sites_summary(),
             "generatedAt": dt.datetime.utcnow().isoformat() + "Z",
             "source": "error",
             "error": str(exc),

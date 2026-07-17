@@ -47,25 +47,39 @@ function downloadCsv(filename, csvContent) {
   URL.revokeObjectURL(url);
 }
 
-function exportFilteredRecords() {
-  const records = filtered();
-  const meta = [
+// Shared metadata block prepended to EVERY export: applied filters, period,
+// export date, sync time, source, denominator note, definitions pointer.
+function exportMetaBlock(extra = []) {
+  const f = (set) => (set.size ? Array.from(set).join("; ") : "all");
+  return [
     `# CCCM Cluster Somalia — Service Mapping Dashboard export`,
     `# Export date: ${new Date().toISOString()}`,
-    `# Reporting period filter: ${filters.period.size ? Array.from(filters.period).join("; ") : "all"}`,
-    `# Region filter: ${filters.region.size ? Array.from(filters.region).join("; ") : "all"}`,
-    `# District filter: ${filters.district.size ? Array.from(filters.district).join("; ") : "all"}`,
-    `# Sector filter: ${filters.sector.size ? Array.from(filters.sector).join("; ") : "all"}`,
-    `# Agency filter: ${filters.agency.size ? Array.from(filters.agency).join("; ") : "all"}`,
-    `# Data source: KoboToolbox (${state.source || "unknown"})`,
+    `# Reporting period filter: ${f(filters.period)}`,
+    `# Region filter: ${f(filters.region)}`,
+    `# District filter: ${f(filters.district)}`,
+    `# Catchment filter: ${f(filters.catchment)}`,
+    `# Sector filter: ${f(filters.sector)}`,
+    `# Agency filter: ${f(filters.agency)}`,
+    `# Coverage-status filter: ${f(filters.coverage)}`,
+    `# Data sources: ${state.source || "unknown"}`,
     `# Last synchronization: ${state.generatedAt || "unknown"}`,
+    `# Master-list sites (denominator reference): ${state.masterSites ? state.masterSites.total : "unknown"}`,
+    `# Definitions: Covered = >=1 confirmed active provider; Not covered = explicitly confirmed unavailable; Unknown = blank/not reported (never counted as No). See the Methodology panel for full definitions.`,
+    `# Disclaimer: figures reflect partner-reported data for the filters above and may change as reporting is updated.`,
+    ...extra,
     `#`,
   ].join("\r\n");
-  downloadCsv(`cccm_service_mapping_${new Date().toISOString().slice(0, 10)}.csv`, meta + "\r\n" + recordsToCsv(records));
+}
+
+function exportFilteredRecords() {
+  const records = filtered();
+  downloadCsv(`cccm_service_mapping_${new Date().toISOString().slice(0, 10)}.csv`, exportMetaBlock() + "\r\n" + recordsToCsv(records));
 }
 
 function exportByKind(kind) {
   const records = filtered();
+  const stamp = new Date().toISOString().slice(0, 10);
+  const withMeta = (rows) => exportMetaBlock() + "\r\n" + tableToCsv(rows).replace(/^﻿/, "");
   if (kind === "records") return exportFilteredRecords();
 
   if (kind === "sites") {
@@ -74,25 +88,69 @@ function exportByKind(kind) {
       activeAgencies: r.activeAgencies, sectorsAvailable: r.sectorsAvailable.join("; "),
       sectorsMissing: r.sectorsMissing.join("; "), coverageScore: r.coverageScore,
     }));
-    return downloadCsv("cccm_sites_and_coverage.csv", tableToCsv(rows));
+    return downloadCsv(`cccm_sites_and_coverage_${stamp}.csv`, withMeta(rows));
   }
   if (kind === "agencies") {
-    const rows = computeSitesByAgency(records, 1000).map((r) => ({ agency: r.agency, sitesCovered: r.sitesCovered }));
-    return downloadCsv("cccm_agencies_and_activities.csv", tableToCsv(rows));
+    const rows = computeSitesByAgency(records, 100000).map((r) => ({ agency: r.agency, sitesCovered: r.sitesCovered }));
+    return downloadCsv(`cccm_agencies_and_activities_${stamp}.csv`, withMeta(rows));
   }
   if (kind === "gaps") {
     const rows = computeSiteGapProfiles(records).filter((s) => s.gapCount > 0).map((s) => ({
       siteName: s.siteName, siteCode: s.siteKey, region: s.region, district: s.district,
-      gapCount: s.gapCount, gaps: s.gaps.join("; "),
+      gapCount: s.gapCount, critical: s.isCritical ? "yes" : "no", gaps: s.gaps.join("; "),
     }));
-    return downloadCsv("cccm_priority_service_gaps.csv", tableToCsv(rows));
+    return downloadCsv(`cccm_priority_service_gaps_${stamp}.csv`, withMeta(rows));
   }
   if (kind === "quality") {
     const rows = records.filter((r) => r.dataQualityStatus && r.dataQualityStatus !== "passed").map((r) => ({
       siteCode: r.matchedSiteCode || r.siteCodeRaw, matchStatus: r.matchStatus,
       dataQualityStatus: r.dataQualityStatus, submissionUuid: r.submissionUuid,
     }));
-    return downloadCsv("cccm_data_quality_issues.csv", tableToCsv(rows));
+    return downloadCsv(`cccm_data_quality_issues_${stamp}.csv`, withMeta(rows));
+  }
+  if (kind === "sectors") {
+    const rows = computeSectorCoverage(records).map((s) => ({
+      sector: s.sector, covered: s.covered, notCovered: s.notCovered, unknown: s.unknown,
+      assessedDenominator: s.reportableTotal, coveragePct: s.reportableTotal ? Math.round(s.coveragePct) : "",
+    }));
+    return downloadCsv(`cccm_sector_summary_${stamp}.csv`, withMeta(rows));
+  }
+  if (kind === "catchments") {
+    const rows = computeCatchmentAnalysis(records).map((c) => ({
+      catchment: c.catchment, district: c.district, sitesAssessed: c.sitesAssessed,
+      activeAgencies: c.activeAgencies, coveragePct: c.coveragePct === null ? "" : Math.round(c.coveragePct),
+      topMissingSectors: c.topMissing.join("; "),
+    }));
+    return downloadCsv(`cccm_catchment_summary_${stamp}.csv`, withMeta(rows));
+  }
+  if (kind === "notreported") {
+    // Master-list sites with no record in the current selection. Only district
+    // totals are available client-side without shipping the full master list,
+    // so this export is per-district: master vs reported vs missing counts.
+    const seen = {};
+    records.forEach((r) => {
+      const k = siteKey(r);
+      if (!k || !r.district) return;
+      (seen[r.district] = seen[r.district] || new Set()).add(k);
+    });
+    const rows = Object.entries((state.masterSites && state.masterSites.byDistrict) || {}).map(([district, masterCount]) => {
+      const reported = seen[district] ? seen[district].size : 0;
+      return { district, masterListSites: masterCount, sitesReported: reported, sitesNotReported: Math.max(0, masterCount - reported) };
+    }).sort((a, b) => b.sitesNotReported - a.sitesNotReported);
+    return downloadCsv(`cccm_sites_not_reported_${stamp}.csv`, withMeta(rows));
+  }
+  if (kind === "methodology") {
+    const text = buildMethodologyText();
+    const blob = new Blob(["﻿" + text], { type: "text/plain;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `cccm_service_mapping_methodology_${stamp}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    return;
   }
 }
 

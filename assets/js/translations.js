@@ -63,6 +63,7 @@ const TRANSLATIONS = {
     col_sectors_missing: "Sectors missing", col_coverage_score: "Coverage score", col_last_report: "Last report",
     col_status: "Data status",
     download_menu_title: "Download data",
+    methodology_btn: "Methodology",
     dl_records: "Filtered service records", dl_sites: "Sites and coverage",
     dl_agencies: "Agencies and activities", dl_gaps: "Priority service gaps", dl_quality: "Data-quality issues",
 
@@ -117,6 +118,43 @@ const TRANSLATIONS = {
     tip_no_health: "Sites confirmed not covered for Health.",
     tip_no_wash: "Sites confirmed not covered for WASH.",
     tip_no_protection: "Sites confirmed not covered for General Protection.",
+
+    // Reporting completeness
+    h_completeness: "Reporting completeness",
+    h_rate_by_district: "Reporting rate by district (lowest 15)",
+    kpi_master_sites: "Master-list sites",
+    kpi_sites_reported: "Sites reported",
+    kpi_sites_not_reported: "Sites not reported",
+    kpi_reporting_rate: "Reporting rate",
+    kpi_stale_reports: "Stale reports (>180 days)",
+    tip_master_sites: "All sites on the CCCM master site list. No per-round 'expected to report' scope is configured yet, so this is the reference denominator.",
+    tip_sites_reported: "Distinct master-list sites with at least one record in the current selection.",
+    tip_sites_not_reported: "Master-list sites with no record in the current selection.",
+    tip_reporting_rate: "Sites reported ÷ master-list sites × 100. This is a share of the FULL master list, not of a per-round expected cohort.",
+    tip_stale_reports: "Reported sites whose most recent record is older than 180 days.",
+    completeness_note: "Note: the reporting rate uses the full CCCM master site list as its denominator. A per-reporting-round 'expected to report' scope has not been configured yet, so this rate understates completeness where only part of the list was requested to report.",
+
+    // Agencies extras
+    h_single_provider: "Sectors with a single provider",
+    single_provider: "only provider: {agency}",
+    no_single_provider: "No sector in the current selection depends on a single provider.",
+
+    // Like-for-like trend
+    insight_lfl_up: "Like-for-like: coverage increased by {pts} points among the {n} sites reported in both periods.",
+    insight_lfl_down: "Like-for-like: coverage declined by {pts} points among the {n} sites reported in both periods.",
+
+    // Drawer extras
+    drawer_unknown: "Unknown sectors",
+    drawer_copy_id: "Copy Site ID",
+    drawer_copied: "Copied ✓",
+    drawer_zoom: "Zoom to site",
+
+    // Download menu extras
+    dl_sectors: "Sector summary",
+    dl_catchments: "Catchment summary",
+    dl_notreported: "Sites not reported (by district)",
+    dl_methodology: "Methodology (text)",
+    download_methodology: "Download methodology",
 
     // Data-quality KPIs
     kpi_dq_passed: "Records passing all checks",
@@ -245,6 +283,7 @@ const TRANSLATIONS = {
     col_sectors_missing: "Qaybaha maqan", col_coverage_score: "Dhibcaha daboolka", col_last_report: "Warbixintii u dambaysay",
     col_status: "Xaaladda xogta",
     download_menu_title: "Soo deji xogta",
+    methodology_btn: "Habka shaqada",
     dl_records: "Diiwaannada adeegga ee la shaandheeyay", dl_sites: "Goobaha iyo daboolka",
     dl_agencies: "Hay'adaha iyo hawlaha", dl_gaps: "Baahida adeegyada degdegga ah", dl_quality: "Arrimaha tayada xogta",
 
@@ -296,6 +335,38 @@ const TRANSLATIONS = {
     tip_no_health: "Goobaha la xaqiijiyay inaysan lahayn adeeg Caafimaad.",
     tip_no_wash: "Goobaha la xaqiijiyay inaysan lahayn adeeg WASH.",
     tip_no_protection: "Goobaha la xaqiijiyay inaysan lahayn adeeg Ilaalin Guud.",
+
+    h_completeness: "Dhamaystirka warbixinta",
+    h_rate_by_district: "Heerka warbixinta degmo kasta (15-ka ugu hooseeya)",
+    kpi_master_sites: "Goobaha liiska rasmiga ah",
+    kpi_sites_reported: "Goobaha la soo sheegay",
+    kpi_sites_not_reported: "Goobaha aan la soo sheegin",
+    kpi_reporting_rate: "Heerka warbixinta",
+    kpi_stale_reports: "Warbixinno duugoobay (>180 maalmood)",
+    tip_master_sites: "Dhammaan goobaha liiska rasmiga ah ee CCCM. Wali lama qaabeynin cabbir 'la filayo inay warbixiyaan' oo xilli kasta ah.",
+    tip_sites_reported: "Goobaha liiska rasmiga ah ee leh ugu yaraan hal diiwaan xulashada hadda.",
+    tip_sites_not_reported: "Goobaha liiska rasmiga ah ee aan lahayn diiwaan xulashada hadda.",
+    tip_reporting_rate: "Goobaha la soo sheegay ÷ goobaha liiska rasmiga ah × 100. Kani waa saami liiska OO DHAN, ma aha cabbir xilli-warbixineed.",
+    tip_stale_reports: "Goobaha diiwaankooda ugu dambeeya uu ka weyn yahay 180 maalmood.",
+    completeness_note: "Fiiro gaar ah: heerka warbixintu wuxuu isticmaalaa liiska rasmiga ah oo dhan. Cabbir 'la filayo' oo xilli kasta ah wali lama qaabeynin.",
+
+    h_single_provider: "Qaybaha leh hal bixiye kaliya",
+    single_provider: "bixiyaha kaliya: {agency}",
+    no_single_provider: "Xulashada hadda qayb kuma tiirsana hal bixiye kaliya.",
+
+    insight_lfl_up: "Isbarbardhig isku-mid ah: daboolku wuxuu kordhay {pts} dhibcood {n} goobood ee labada xilli warbixiyay.",
+    insight_lfl_down: "Isbarbardhig isku-mid ah: daboolku wuxuu hoos u dhacay {pts} dhibcood {n} goobood ee labada xilli warbixiyay.",
+
+    drawer_unknown: "Qaybaha aan la garanayn",
+    drawer_copy_id: "Koobbi Aqoonsiga",
+    drawer_copied: "La koobiyay ✓",
+    drawer_zoom: "U dhawee goobta",
+
+    dl_sectors: "Kooban qaybeed",
+    dl_catchments: "Kooban aagagga daryeelka",
+    dl_notreported: "Goobaha aan la soo sheegin (degmo)",
+    dl_methodology: "Habka shaqada (qoraal)",
+    download_methodology: "Soo deji habka shaqada",
 
     kpi_dq_passed: "Diiwaannada dhammaan hubinta gudbay",
     kpi_dq_critical: "Diiwaannada leh arrimo halis ah",

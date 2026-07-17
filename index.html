@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="assets/css/dashboard.css?v=7" />
+  <link rel="stylesheet" href="assets/css/dashboard.css?v=8" />
 </head>
 <body>
   <header class="app-header">
@@ -24,7 +24,7 @@
       </div>
       <div class="header-actions">
         <button class="btn btn-primary" id="btn-download" data-i18n="download">⬇ Download data</button>
-        <button class="btn btn-icon" id="btn-settings" title="Methodology / settings">⚙</button>
+        <button class="btn btn-light" id="btn-settings" title="Methodology / definitions">ⓘ <span data-i18n="methodology_btn">Methodology</span></button>
         <button class="btn btn-icon" id="btn-theme" title="Toggle theme">🌓</button>
         <select id="lang-switch" class="lang-switch" aria-label="Language">
           <option value="en">EN</option>
@@ -99,13 +99,14 @@
 
   <nav class="section-nav" id="section-nav" aria-label="Dashboard sections">
     <div class="container section-nav-inner">
-      <a href="#section-key-figures" class="section-nav-link" data-i18n="nav_overview">Overview</a>
-      <a href="#section-coverage" class="section-nav-link" data-i18n="nav_coverage">Coverage</a>
+      <a href="#section-completeness" class="section-nav-link" data-i18n="nav_overview">Overview</a>
       <a href="#section-maps" class="section-nav-link" data-i18n="nav_maps">Map</a>
+      <a href="#section-coverage" class="section-nav-link" data-i18n="nav_coverage">Coverage</a>
       <a href="#section-agencies" class="section-nav-link" data-i18n="nav_agencies">Agencies</a>
       <a href="#section-priority" class="section-nav-link" data-i18n="nav_priority">Priority gaps</a>
       <a href="#section-catchments" class="section-nav-link" data-i18n="nav_catchments">Catchments</a>
       <a href="#section-sites" class="section-nav-link" data-i18n="nav_sites">Sites</a>
+      <a href="#section-quality" class="section-nav-link" data-i18n="nav_quality">Data quality</a>
     </div>
   </nav>
 
@@ -115,10 +116,41 @@
       <span data-i18n="loading">Loading service-mapping data…</span>
     </div>
 
+    <section id="section-completeness" class="section">
+      <div class="card">
+        <div class="card-header"><h2 data-i18n="h_completeness">Reporting completeness</h2></div>
+        <div class="kpi-grid" id="completeness-kpi-row"></div>
+        <div class="completeness-note" id="completeness-note"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2 data-i18n="h_rate_by_district">Reporting rate by district</h2></div>
+        <div class="chart-wrap"><canvas id="chart-rate-by-district"></canvas></div>
+      </div>
+    </section>
+
     <section id="section-key-figures" class="section">
       <div class="kpi-grid" id="kpi-row"></div>
       <div class="card insight-banner" id="insight-banner"></div>
       <div class="sector-chips" id="sector-chips"></div>
+    </section>
+
+    <section id="section-maps" class="section">
+      <div class="card">
+        <div class="card-header">
+          <h2 data-i18n="h_maps">Service coverage maps</h2>
+          <select id="map-mode" class="control-select">
+            <option value="overall" data-i18n="map_overall">Overall coverage</option>
+            <option value="sector" data-i18n="map_sector">Selected sector</option>
+            <option value="agencies" data-i18n="map_agencies">Active agencies</option>
+            <option value="gaps" data-i18n="map_gaps">Priority gaps</option>
+            <option value="freshness" data-i18n="map_freshness">Data freshness</option>
+          </select>
+          <button class="btn btn-light" id="btn-reset-map" data-i18n="reset_map">Reset map</button>
+          <button class="btn btn-light" id="btn-fullscreen-map" data-i18n="fullscreen">⛶</button>
+        </div>
+        <div id="map-container" class="map-container"></div>
+        <div class="map-legend" id="map-legend"></div>
+      </div>
     </section>
 
     <section id="section-coverage" class="section">
@@ -160,6 +192,16 @@
         <div class="card">
           <div class="card-header"><h2 data-i18n="h_sites_by_agency">Sites covered by agency</h2></div>
           <div class="chart-wrap"><canvas id="chart-sites-by-agency"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <div class="card">
+          <div class="card-header"><h2 data-i18n="h_agency_matrix">Agency–sector matrix</h2></div>
+          <div class="table-scroll" id="agency-matrix-container"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2 data-i18n="h_single_provider">Sectors with a single provider</h2></div>
+          <div id="single-provider-list"></div>
         </div>
       </div>
     </section>
@@ -237,24 +279,23 @@
       </div>
     </section>
 
-    <section id="section-maps" class="section">
+    <section id="section-quality" class="section">
       <div class="card">
-        <div class="card-header">
-          <h2 data-i18n="h_maps">Service coverage maps</h2>
-          <select id="map-mode" class="control-select">
-            <option value="overall" data-i18n="map_overall">Overall coverage</option>
-            <option value="sector" data-i18n="map_sector">Selected sector</option>
-            <option value="agencies" data-i18n="map_agencies">Active agencies</option>
-            <option value="gaps" data-i18n="map_gaps">Priority gaps</option>
-            <option value="freshness" data-i18n="map_freshness">Data freshness</option>
-          </select>
-          <button class="btn btn-light" id="btn-reset-map" data-i18n="reset_map">Reset map</button>
-          <button class="btn btn-light" id="btn-fullscreen-map" data-i18n="fullscreen">⛶</button>
+        <div class="card-header"><h2 data-i18n="h_quality">Data quality &amp; reliability</h2></div>
+        <div class="kpi-grid" id="quality-kpi-row"></div>
+      </div>
+      <div class="chart-grid">
+        <div class="card">
+          <div class="card-header"><h2 data-i18n="h_match_status">Site matching status</h2></div>
+          <div class="chart-wrap"><canvas id="chart-match-status"></canvas></div>
         </div>
-        <div id="map-container" class="map-container"></div>
-        <div class="map-legend" id="map-legend"></div>
+        <div class="card">
+          <div class="card-header"><h2 data-i18n="h_quality_by_source">Records by data source</h2></div>
+          <div class="chart-wrap"><canvas id="chart-by-source"></canvas></div>
+        </div>
       </div>
     </section>
+
   </main>
 
   <!-- Site profile drawer -->
@@ -279,21 +320,25 @@
     <div class="download-menu">
       <button class="btn btn-light btn-block" data-export="records" data-i18n="dl_records">Filtered service records</button>
       <button class="btn btn-light btn-block" data-export="sites" data-i18n="dl_sites">Sites and coverage</button>
+      <button class="btn btn-light btn-block" data-export="sectors" data-i18n="dl_sectors">Sector summary</button>
       <button class="btn btn-light btn-block" data-export="agencies" data-i18n="dl_agencies">Agencies and activities</button>
       <button class="btn btn-light btn-block" data-export="gaps" data-i18n="dl_gaps">Priority service gaps</button>
+      <button class="btn btn-light btn-block" data-export="catchments" data-i18n="dl_catchments">Catchment summary</button>
+      <button class="btn btn-light btn-block" data-export="notreported" data-i18n="dl_notreported">Sites not reported (by district)</button>
       <button class="btn btn-light btn-block" data-export="quality" data-i18n="dl_quality">Data-quality issues</button>
+      <button class="btn btn-light btn-block" data-export="methodology" data-i18n="dl_methodology">Methodology (text)</button>
     </div>
   </aside>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script src="assets/js/translations.js?v=7"></script>
-  <script src="assets/js/multiselect.js?v=7"></script>
-  <script src="assets/js/filters.js?v=7"></script>
-  <script src="assets/js/charts.js?v=7"></script>
-  <script src="assets/js/maps.js?v=7"></script>
-  <script src="assets/js/tables.js?v=7"></script>
-  <script src="assets/js/export.js?v=7"></script>
-  <script src="assets/js/app.js?v=7"></script>
+  <script src="assets/js/translations.js?v=8"></script>
+  <script src="assets/js/multiselect.js?v=8"></script>
+  <script src="assets/js/filters.js?v=8"></script>
+  <script src="assets/js/charts.js?v=8"></script>
+  <script src="assets/js/maps.js?v=8"></script>
+  <script src="assets/js/tables.js?v=8"></script>
+  <script src="assets/js/export.js?v=8"></script>
+  <script src="assets/js/app.js?v=8"></script>
 </body>
 </html>

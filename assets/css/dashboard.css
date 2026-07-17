@@ -272,6 +272,19 @@ body {
 .compact-table .cell-sub { font-size: 0.7rem; color: var(--muted); }
 .btn-sm { padding: 5px 12px; font-size: 0.78rem; }
 .table-foot { margin-top: 10px; text-align: center; }
+
+/* Agency-sector matrix */
+.matrix-cell { text-align: center; cursor: pointer; font-weight: 600; }
+.matrix-cell:hover { background: var(--hover-bg); }
+.matrix-zero { color: var(--border); }
+
+/* Reporting completeness */
+.completeness-note { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+
+/* Site drawer extras */
+.drawer-actions { display: flex; align-items: center; gap: 6px; margin: 8px 0 14px; flex-wrap: wrap; }
+.drawer-nav { margin-left: auto; display: inline-flex; gap: 4px; }
+.drawer-sector-unknown { color: var(--muted); }
 .chart-wrap { position: relative; height: 340px; }
 .chart-wrap-tall { height: 460px; }
 

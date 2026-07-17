@@ -38,15 +38,7 @@ class handler(BaseHTTPRequestHandler):
             # a real server-side crash is invisible and unfixable from the outside.
             print(f"[service-mapping] request failed: {exc!r}", file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
-            error_payload = {"error": "internal_error", "message": "Failed to build service-mapping payload."}
-            # Temporary diagnostic escape hatch (?debug=true): include the traceback
-            # in the response body. Tracebacks here contain file paths only — the
-            # Kobo token/ZiteManager key never appear in exception text. Remove
-            # once the production 500 is resolved.
-            if query.get("debug", ["false"])[0].lower() == "true":
-                error_payload["exception"] = repr(exc)
-                error_payload["traceback"] = traceback.format_exc()
-            json_body = json.dumps(error_payload).encode("utf-8")
+            json_body = json.dumps({"error": "internal_error", "message": "Failed to build service-mapping payload."}).encode("utf-8")
             gzip_body = gzip.compress(json_body)
             status = 500
 

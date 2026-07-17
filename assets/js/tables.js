@@ -71,6 +71,7 @@ function renderSiteTable(records) {
   });
 
   document.getElementById("sites-table-count").textContent = t("n_assessed_sites", { n: allRows.length.toLocaleString() });
+  _drawerSiteOrder = rows.map((r) => r.siteKey); // prev/next follows table order
 
   const totalPages = Math.max(1, Math.ceil(rows.length / TABLE_PAGE_SIZE));
   tablePage = Math.min(tablePage, totalPages);
@@ -138,6 +139,10 @@ function setupTableInteractions() {
   });
 }
 
+// Ordered site list for prev/next navigation — refreshed by renderSiteTable
+// so the drawer walks the same order the user sees in the table.
+let _drawerSiteOrder = [];
+
 function openSiteDrawer(key) {
   const rows = state.all.filter((r) => siteKey(r) === key);
   if (!rows.length) return;
@@ -145,30 +150,70 @@ function openSiteDrawer(key) {
   const agencies = new Set(rows.filter((r) => r.coverageStatus === "Yes" && r.agency).map((r) => r.agency));
   const available = SECTORS.filter((s) => rows.some((r) => r.sector === s && r.coverageStatus === "Yes"));
   const missing = SECTORS.filter((s) => rows.some((r) => r.sector === s && r.coverageStatus === "No") && !available.includes(s));
+  const unknown = SECTORS.filter((s) => !available.includes(s) && !missing.includes(s));
+  // Agencies grouped by the sector they cover at this site.
+  const agenciesBySector = available
+    .map((s) => {
+      const a = Array.from(new Set(rows.filter((r) => r.sector === s && r.coverageStatus === "Yes" && r.agency).map((r) => r.agency)));
+      return a.length ? `${s}: ${a.join(", ")}` : null;
+    })
+    .filter(Boolean);
   const activities = rows.filter((r) => r.activity).map((r) => `${r.sector}: ${r.activity}`);
   const reportable = available.length + missing.length;
   const coverageScore = reportable ? Math.round((available.length / reportable) * 100) : null;
   const [badgeKey] = MATCH_BADGE[first.matchStatus] || ["badge_needs_review"];
   const lastUpdated = rows.map((r) => r.lastUpdated).filter(Boolean).sort().slice(-1)[0];
+  const matchDistance = first.matchDistanceMeters != null ? `${first.matchDistanceMeters} m` : null;
+
+  const idx = _drawerSiteOrder.indexOf(key);
+  const prevKey = idx > 0 ? _drawerSiteOrder[idx - 1] : null;
+  const nextKey = idx >= 0 && idx < _drawerSiteOrder.length - 1 ? _drawerSiteOrder[idx + 1] : null;
 
   document.getElementById("site-drawer-content").innerHTML = `
     <h2>${siteLabel(first)}</h2>
     <p style="color:var(--text-muted)">${first.matchedSiteCode || first.siteCodeRaw || ""}</p>
+    <div class="drawer-actions">
+      <button type="button" class="btn btn-light btn-sm" id="drawer-copy-id">${t("drawer_copy_id")}</button>
+      ${first.latitude != null ? `<button type="button" class="btn btn-light btn-sm" id="drawer-zoom">${t("drawer_zoom")}</button>` : ""}
+      <span class="drawer-nav">
+        <button type="button" class="btn btn-light btn-sm" id="drawer-prev" ${prevKey ? "" : "disabled"}>‹</button>
+        <button type="button" class="btn btn-light btn-sm" id="drawer-next" ${nextKey ? "" : "disabled"}>›</button>
+      </span>
+    </div>
     <table class="data-table">
       <tr><td>${t("drawer_region")}</td><td>${first.region || "—"}</td></tr>
       <tr><td>${t("drawer_district")}</td><td>${first.district || "—"}</td></tr>
       <tr><td>${t("drawer_catchment")}</td><td>${first.catchment || "—"}</td></tr>
       <tr><td>${t("drawer_coordinates")}</td><td>${first.latitude ?? "—"}, ${first.longitude ?? "—"}</td></tr>
       <tr><td>${t("drawer_coverage_score")}</td><td>${coverageScore === null ? "—" : coverageScore + "%"}</td></tr>
-      <tr><td>${t("drawer_active_agencies")}</td><td>${Array.from(agencies).join(", ") || t("drawer_none")}</td></tr>
+      <tr><td>${t("drawer_active_agencies")}</td><td>${agenciesBySector.map((x) => `<div>${x}</div>`).join("") || Array.from(agencies).join(", ") || t("drawer_none")}</td></tr>
       <tr><td>${t("drawer_available")}</td><td>${available.map((s) => `<span class="drawer-sector">${sectorIcon(s, 16)} ${s}</span>`).join("") || "—"}</td></tr>
       <tr><td>${t("drawer_missing")}</td><td>${missing.map((s) => `<span class="drawer-sector drawer-sector-missing">${sectorIcon(s, 16)} ${s}</span>`).join("") || "—"}</td></tr>
-      <tr><td>${t("drawer_matching")}</td><td>${t(badgeKey)}</td></tr>
+      <tr><td>${t("drawer_unknown")}</td><td>${unknown.map((s) => `<span class="drawer-sector drawer-sector-unknown">${sectorIcon(s, 16)} ${s}</span>`).join("") || "—"}</td></tr>
+      <tr><td>${t("drawer_matching")}</td><td>${t(badgeKey)}${matchDistance ? ` (${matchDistance})` : ""}</td></tr>
       <tr><td>${t("drawer_last_updated")}</td><td>${lastUpdated ? lastUpdated.slice(0, 10) : "—"}</td></tr>
     </table>
     <h3 style="font-size:0.85rem;text-transform:uppercase;color:var(--text-muted);margin-top:16px;">${t("drawer_activities")}</h3>
     <ul>${activities.map((a) => `<li>${a}</li>`).join("") || `<li>${t("drawer_none_reported")}</li>`}</ul>
   `;
+
+  document.getElementById("drawer-copy-id").addEventListener("click", (e) => {
+    navigator.clipboard.writeText(first.matchedSiteCode || first.siteCodeRaw || "").then(() => {
+      e.target.textContent = t("drawer_copied");
+      setTimeout(() => { e.target.textContent = t("drawer_copy_id"); }, 1500);
+    });
+  });
+  const zoomBtn = document.getElementById("drawer-zoom");
+  if (zoomBtn) zoomBtn.addEventListener("click", () => {
+    closeSiteDrawer();
+    document.getElementById("section-maps").scrollIntoView({ behavior: "smooth" });
+    if (state.maps.main) state.maps.main.setView([first.latitude, first.longitude], 13);
+  });
+  const prevBtn = document.getElementById("drawer-prev");
+  const nextBtn = document.getElementById("drawer-next");
+  if (prevKey) prevBtn.addEventListener("click", () => openSiteDrawer(prevKey));
+  if (nextKey) nextBtn.addEventListener("click", () => openSiteDrawer(nextKey));
+
   document.getElementById("site-drawer").classList.remove("hidden");
   document.getElementById("drawer-overlay").classList.remove("hidden");
 }
