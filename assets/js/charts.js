@@ -760,12 +760,12 @@ function renderCatchments(records) {
   const kpiRow = document.getElementById("catchment-kpi-row");
   const tbody = document.getElementById("catchment-table-body");
   destroyChart("chart-catchment-coverage");
-  // Dynamic height: ~18px per bar. 59 catchments squeezed into a fixed
-  // 460px meant ~8px rows with end-labels overlapping into an unreadable
-  // stack — the wrap grows with the data and the card scrolls if needed.
+  // Height sized to the capped row count (max 15 bars at ~24px) — roomy
+  // labels, no scroll-wall.
   const catchmentCanvas = document.getElementById("chart-catchment-coverage");
   if (catchmentCanvas && catchmentCanvas.parentElement) {
-    catchmentCanvas.parentElement.style.height = `${Math.max(360, data.length * 18 + 60)}px`;
+    const rowCount = Math.min(15, data.length);
+    catchmentCanvas.parentElement.style.height = `${Math.max(300, rowCount * 24 + 70)}px`;
   }
 
   if (!data.length) {
@@ -786,7 +786,22 @@ function renderCatchments(records) {
     kpiCard("kpi-ca-worst", worst ? `${friendlyCatchment(worst.catchment)} (${worst.coveragePct.toFixed(0)}%)` : "—", t("kpi_catchment_worst"), t("tip_catchment_worst"), true),
   ].join("");
 
-  const chartData = [...data].sort((a, b) => (b.coveragePct ?? -1) - (a.coveragePct ?? -1));
+  // Action-first view: the question this chart answers is "which catchments
+  // need attention?" — so it ranks LOWEST coverage first, hides catchments
+  // with fewer than 3 assessed sites (a 0% on 1 site is noise, not signal),
+  // and caps at 15 rows. The complete list stays in the adjacent table and
+  // the catchment CSV export; a note states what is shown vs. total.
+  const eligible = data.filter((d) => d.coveragePct !== null && d.sitesAssessed >= 3);
+  const chartData = [...eligible].sort((a, b) => a.coveragePct - b.coveragePct).slice(0, 15);
+  const chartNote = document.getElementById("catchment-chart-note");
+  if (chartNote) {
+    chartNote.textContent = t("catchment_chart_note", {
+      shown: chartData.length,
+      eligible: eligible.length,
+      total: data.length,
+    });
+  }
+  const thresholdColor = (pct) => (pct < 30 ? COLORS.critical : pct < 60 ? COLORS.warning : COLORS.success);
   state.charts.catchmentCoverage = new Chart(document.getElementById("chart-catchment-coverage"), {
     type: "bar",
     data: {
@@ -794,14 +809,27 @@ function renderCatchments(records) {
       datasets: [{
         label: t("chart_coverage_pct"),
         data: chartData.map((d) => d.coveragePct ?? 0),
-        backgroundColor: chartData.map((d) => (filters.catchment.has(d.catchment) ? COLORS.orange : COLORS.primary)),
+        backgroundColor: chartData.map((d) =>
+          filters.catchment.has(d.catchment) ? COLORS.orange : thresholdColor(d.coveragePct ?? 0)
+        ),
       }],
     },
     options: {
       indexAxis: "y", responsive: true, maintainAspectRatio: false,
       layout: { padding: { right: 46 } },
       scales: { x: { max: 100, title: { display: true, text: t("chart_coverage_pct") } } },
-      plugins: { legend: { display: false }, barValues: PCT_LABEL },
+      plugins: {
+        legend: { display: false },
+        barValues: PCT_LABEL,
+        tooltip: {
+          callbacks: {
+            label: (c) => {
+              const d = chartData[c.dataIndex];
+              return `${formatPct(c.parsed.x)} — ${formatNumber(d.sitesAssessed)} sites assessed, ${formatNumber(d.activeAgencies)} agencies`;
+            },
+          },
+        },
+      },
       onClick: (evt, elements) => {
         if (!elements.length) return;
         toggleFilterValue("catchment", chartData[elements[0].index].catchment, evt.native && (evt.native.ctrlKey || evt.native.metaKey));
@@ -919,83 +947,6 @@ function renderCompleteness(records) {
   });
 }
 
-// ---------- Data quality (P2.3, re-added per updated brief) ----------
-
-const MATCH_STATUS_LABEL_KEYS = {
-  matched_by_site_code: "badge_matched_id",
-  matched_by_official_name: "badge_matched_name",
-  matched_by_alternative_name: "badge_matched_alt",
-  matched_by_gps: "badge_matched_gps",
-  probable_name_match: "badge_needs_review",
-  unmatched: "badge_unmatched",
-};
-
-function renderDataQuality(records) {
-  const kpiRow = document.getElementById("quality-kpi-row");
-  if (!kpiRow) return;
-
-  const now = Date.now();
-  let passed = 0, critical = 0, unmatched = 0, missingCoords = 0, stale = 0;
-  const matchCounts = {}, sourceCounts = {};
-  records.forEach((r) => {
-    if (r.dataQualityStatus === "passed") passed += 1;
-    if (r.dataQualityStatus === "critical") critical += 1;
-    if (r.matchStatus === "unmatched" || r.matchStatus === "probable_name_match") unmatched += 1;
-    if (r.latitude == null || r.longitude == null) missingCoords += 1;
-    if (r.lastUpdated && (now - new Date(r.lastUpdated).getTime()) / 86400000 > 180) stale += 1;
-    matchCounts[r.matchStatus] = (matchCounts[r.matchStatus] || 0) + 1;
-    const src = r.dataSource || "unknown";
-    sourceCounts[src] = (sourceCounts[src] || 0) + 1;
-  });
-  const total = records.length;
-  const denom = (n) => t("kpi_of", { a: formatNumber(n), b: formatNumber(total) });
-
-  // Semantic-layer quality: conflicts are counted at the canonical
-  // site×sector×period grain (a Yes and a No recorded for the same cell),
-  // NOT per record — the unit is stated in the tooltip.
-  const sq = semanticQuality(siteSectorCells(records));
-
-  kpiRow.innerHTML = [
-    kpiCard("kpi-dq-passed", denom(passed), t("kpi_dq_passed"), t("tip_dq_passed")),
-    kpiCard("kpi-dq-critical", denom(critical), t("kpi_dq_critical"), t("tip_dq_critical"), critical > 0),
-    kpiCard("kpi-dq-conflicts", t("kpi_of", { a: formatNumber(sq.conflicts), b: formatNumber(sq.totalCells) }), t("kpi_dq_conflicts"), t("tip_dq_conflicts"), sq.conflicts > 0),
-    kpiCard("kpi-dq-unmatched", formatNumber(unmatched), t("kpi_dq_unmatched"), t("tip_dq_unmatched"), unmatched > 0),
-    kpiCard("kpi-dq-coords", formatNumber(missingCoords), t("kpi_dq_missing_coords"), t("tip_dq_missing_coords")),
-    kpiCard("kpi-dq-stale", formatNumber(stale), t("kpi_dq_stale"), t("tip_dq_stale")),
-  ].join("");
-
-  destroyChart("chart-match-status");
-  const matchEntries = Object.entries(matchCounts).sort((a, b) => b[1] - a[1]);
-  const matchColors = {
-    matched_by_site_code: COLORS.success, matched_by_official_name: COLORS.success,
-    matched_by_alternative_name: COLORS.secondaryTeal, matched_by_gps: COLORS.warning,
-    probable_name_match: COLORS.warning, unmatched: COLORS.critical,
-  };
-  state.charts.matchStatus = new Chart(document.getElementById("chart-match-status"), {
-    type: "bar",
-    data: {
-      labels: matchEntries.map(([s]) => t(MATCH_STATUS_LABEL_KEYS[s] || "badge_needs_review")),
-      datasets: [{ label: t("chart_records"), data: matchEntries.map(([, n]) => n), backgroundColor: matchEntries.map(([s]) => matchColors[s] || COLORS.unknown) }],
-    },
-    options: {
-      indexAxis: "y", responsive: true, maintainAspectRatio: false,
-      layout: { padding: { right: 56 } },
-      plugins: { legend: { display: false }, barValues: COUNT_LABEL },
-    },
-  });
-
-  destroyChart("chart-by-source");
-  const sourceEntries = Object.entries(sourceCounts);
-  state.charts.bySource = new Chart(document.getElementById("chart-by-source"), {
-    type: "doughnut",
-    data: {
-      labels: sourceEntries.map(([s]) => (s === "kobo" ? "KoboToolbox" : s === "zitemanager" ? "IOM ZiteManager" : s)),
-      datasets: [{ data: sourceEntries.map(([, n]) => n), backgroundColor: [COLORS.primary, COLORS.orange, COLORS.unknown] }],
-    },
-    options: { responsive: true, maintainAspectRatio: false },
-  });
-}
-
 // ---------- Agency-sector matrix + single-provider sectors (P2.5) ----------
 
 // Short sector names shown under the icons in the matrix header — icons
@@ -1053,17 +1004,3 @@ function renderAgencyMatrix(records) {
   });
 }
 
-// Sectors served by exactly ONE agency in the current selection — a
-// single-point-of-failure list coordination teams watch closely.
-function renderSingleProviderSectors(records) {
-  const container = document.getElementById("single-provider-list");
-  if (!container) return;
-  const covered = records.filter((r) => r.coverageStatus === "Yes" && r.agency);
-  const rows = SECTORS.map((sector) => {
-    const agencies = new Set(covered.filter((r) => r.sector === sector).map((r) => r.agency));
-    return { sector, agencies: Array.from(agencies) };
-  }).filter((r) => r.agencies.length === 1);
-  container.innerHTML = rows.length
-    ? rows.map((r) => `<div class="district-list-item">${sectorIcon(r.sector, 16)} <strong>${escapeHtml(r.sector)}</strong> — ${t("single_provider", { agency: escapeHtml(r.agencies[0]) })}</div>`).join("")
-    : `<div class="banner banner-info">${t("no_single_provider")}</div>`;
-}

@@ -9,10 +9,8 @@ function renderAll() {
   renderCoverage(records);
   renderAgencies(records);
   renderAgencyMatrix(records);
-  renderSingleProviderSectors(records);
   renderPriorityGaps(records);
   renderCatchments(records);
-  renderDataQuality(records);
   renderGeography(records);
   renderSiteTable(records);
   updateHeaderInfo();

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="assets/css/dashboard.css?v=12" />
+  <link rel="stylesheet" href="assets/css/dashboard.css?v=13" />
 </head>
 <body>
   <header class="app-header">
@@ -110,7 +110,6 @@
       <a href="#section-priority" class="section-nav-link" data-i18n="nav_priority">Priority gaps</a>
       <a href="#section-catchments" class="section-nav-link" data-i18n="nav_catchments">Catchments</a>
       <a href="#section-sites" class="section-nav-link" data-i18n="nav_sites">Sites</a>
-      <a href="#section-quality" class="section-nav-link" data-i18n="nav_quality">Data quality</a>
     </div>
   </nav>
 
@@ -198,15 +197,9 @@
           <div class="chart-wrap"><canvas id="chart-sites-by-agency"></canvas></div>
         </div>
       </div>
-      <div class="chart-grid">
-        <div class="card">
-          <div class="card-header"><h2 data-i18n="h_agency_matrix">Agency–sector matrix</h2></div>
-          <div class="table-scroll" id="agency-matrix-container"></div>
-        </div>
-        <div class="card">
-          <div class="card-header"><h2 data-i18n="h_single_provider">Sectors with a single provider</h2></div>
-          <div id="single-provider-list"></div>
-        </div>
+      <div class="card">
+        <div class="card-header"><h2 data-i18n="h_agency_matrix">Agency–sector matrix</h2></div>
+        <div class="table-scroll" id="agency-matrix-container"></div>
       </div>
     </section>
 
@@ -230,6 +223,7 @@
         <div class="card">
           <div class="card-header"><h2 data-i18n="h_catchment_coverage">Coverage by catchment area</h2></div>
           <div class="chart-wrap chart-wrap-tall"><canvas id="chart-catchment-coverage"></canvas></div>
+          <div class="completeness-note" id="catchment-chart-note"></div>
         </div>
         <div class="card">
           <div class="card-header"><h2 data-i18n="h_catchment_table">Catchment overview</h2></div>
@@ -288,22 +282,6 @@
       </div>
     </section>
 
-    <section id="section-quality" class="section">
-      <div class="card">
-        <div class="card-header"><h2 data-i18n="h_quality">Data quality &amp; reliability</h2></div>
-        <div class="kpi-grid" id="quality-kpi-row"></div>
-      </div>
-      <div class="chart-grid">
-        <div class="card">
-          <div class="card-header"><h2 data-i18n="h_match_status">Site matching status</h2></div>
-          <div class="chart-wrap"><canvas id="chart-match-status"></canvas></div>
-        </div>
-        <div class="card">
-          <div class="card-header"><h2 data-i18n="h_quality_by_source">Records by data source</h2></div>
-          <div class="chart-wrap"><canvas id="chart-by-source"></canvas></div>
-        </div>
-      </div>
-    </section>
 
   </main>
 
@@ -342,14 +320,14 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script src="assets/js/translations.js?v=12"></script>
-  <script src="assets/js/multiselect.js?v=12"></script>
-  <script src="assets/js/filters.js?v=12"></script>
-  <script src="assets/js/semantic.js?v=12"></script>
-  <script src="assets/js/charts.js?v=12"></script>
-  <script src="assets/js/maps.js?v=12"></script>
-  <script src="assets/js/tables.js?v=12"></script>
-  <script src="assets/js/export.js?v=12"></script>
-  <script src="assets/js/app.js?v=12"></script>
+  <script src="assets/js/translations.js?v=13"></script>
+  <script src="assets/js/multiselect.js?v=13"></script>
+  <script src="assets/js/filters.js?v=13"></script>
+  <script src="assets/js/semantic.js?v=13"></script>
+  <script src="assets/js/charts.js?v=13"></script>
+  <script src="assets/js/maps.js?v=13"></script>
+  <script src="assets/js/tables.js?v=13"></script>
+  <script src="assets/js/export.js?v=13"></script>
+  <script src="assets/js/app.js?v=13"></script>
 </body>
 </html>
