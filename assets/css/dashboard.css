@@ -690,3 +690,16 @@ body {
 
   body.filters-open { overflow: hidden; } /* no background scroll behind drawer */
 }
+
+/* Agency-sector matrix */
+.matrix-table th, .matrix-table td { text-align: center; }
+.matrix-table td:first-child, .matrix-table th:first-child { text-align: left; }
+.matrix-head { vertical-align: bottom; }
+.matrix-head div { line-height: 1.1; }
+.matrix-abbr { font-size: 0.6rem; letter-spacing: 0; }
+.matrix-cell { cursor: pointer; font-weight: 600; min-width: 40px; }
+.matrix-agency { cursor: pointer; white-space: nowrap; }
+.matrix-agency:hover strong { color: var(--primary); }
+.matrix-zero { color: var(--muted); }
+.matrix-total-col { border-left: 2px solid var(--control-border); font-weight: 700; }
+.matrix-total-row td { border-top: 2px solid var(--control-border); font-weight: 700; color: var(--muted); }

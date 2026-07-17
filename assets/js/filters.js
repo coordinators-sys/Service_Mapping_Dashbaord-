@@ -59,11 +59,30 @@ function uniqueSorted(records, field) {
 
 // Catchment values are district-qualified ("Baidoa · CA01") because CA codes
 // repeat across districts — split them so the UI can group by district and
-// show just "CA01" under a heading.
+// show just "CA01" under a heading. Technical suffixes from the shapefile
+// (_GN/_GS = Gaalkacyo North/South) become part of the readable group name;
+// the raw value stays untouched for filtering, and full codes remain in
+// tooltips and exports.
+const CA_SUFFIXES = { _GN: "North", _GS: "South" };
+
 function splitCatchment(value) {
   const idx = String(value).indexOf(" · ");
   if (idx === -1) return { group: null, label: String(value) };
-  return { group: String(value).slice(0, idx), label: String(value).slice(idx + 3) };
+  let group = String(value).slice(0, idx);
+  let label = String(value).slice(idx + 3);
+  const suffix = Object.keys(CA_SUFFIXES).find((s) => label.endsWith(s));
+  if (suffix) {
+    group = `${group} ${CA_SUFFIXES[suffix]}`;
+    label = label.slice(0, -suffix.length);
+  }
+  return { group, label };
+}
+
+// Readable form of a raw catchment value: "Gaalkacyo · CA01_GN" -> "Gaalkacyo North · CA01"
+function friendlyCatchment(value) {
+  if (!value) return value;
+  const { group, label } = splitCatchment(value);
+  return group ? `${group} · ${label}` : label;
 }
 
 const SLICER_CONFIG = [
@@ -148,7 +167,7 @@ function syncSlicerSelections() {
 function displayValue(dimension, value) {
   if (dimension === "catchment") {
     const { group, label } = splitCatchment(value);
-    return filters.district.size === 1 && group ? label : String(value);
+    return filters.district.size === 1 && group ? label : friendlyCatchment(value);
   }
   if (dimension === "site") {
     const rec = state.all.find((r) => siteKey(r) === value);

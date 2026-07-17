@@ -246,6 +246,7 @@ const TRANSLATIONS = {
     header_info: "Reporting period: {period}  •  {n} assessed sites  •  Last Kobo sync: {sync}",
     header_never: "Never",
     matrix_agency: "Agency",
+    matrix_total: "Total",
   },
 
   so: {
@@ -471,6 +472,7 @@ const TRANSLATIONS = {
     header_info: "Xilliga warbixinta: {period}  •  {n} goobood oo la qiimeeyay  •  Kobo sync-gii u dambeeyay: {sync}",
     header_never: "Weligeed",
     matrix_agency: "Hay'adda",
+    matrix_total: "Wadarta",
   },
 };
 

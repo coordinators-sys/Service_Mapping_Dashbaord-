@@ -426,11 +426,14 @@ function renderCoverageTrendChart(records) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      layout: { padding: { top: 18 } },
+      layout: { padding: { top: 22, right: 24 } },
       scales: {
         y: { min: 0, max: 100, ticks: { callback: (v) => formatPct(v) } },
       },
       plugins: {
+        // Single series + the card title already names the metric — a legend
+        // box only overlaps the point labels (as reported), so hide it.
+        legend: { display: false },
         barValues: PCT_LABEL,
         tooltip: {
           callbacks: {
@@ -756,6 +759,13 @@ function renderCatchments(records) {
   const kpiRow = document.getElementById("catchment-kpi-row");
   const tbody = document.getElementById("catchment-table-body");
   destroyChart("chart-catchment-coverage");
+  // Dynamic height: ~18px per bar. 59 catchments squeezed into a fixed
+  // 460px meant ~8px rows with end-labels overlapping into an unreadable
+  // stack — the wrap grows with the data and the card scrolls if needed.
+  const catchmentCanvas = document.getElementById("chart-catchment-coverage");
+  if (catchmentCanvas && catchmentCanvas.parentElement) {
+    catchmentCanvas.parentElement.style.height = `${Math.max(360, data.length * 18 + 60)}px`;
+  }
 
   if (!data.length) {
     kpiRow.innerHTML = "";
@@ -771,15 +781,15 @@ function renderCatchments(records) {
   kpiRow.innerHTML = [
     kpiCard("kpi-ca-count", data.length.toLocaleString(), t("kpi_catchments_covered"), t("tip_catchments_covered")),
     kpiCard("kpi-ca-sites", totalSites.toLocaleString(), t("kpi_catchment_sites"), t("tip_catchment_sites")),
-    kpiCard("kpi-ca-best", best ? `${best.catchment} (${best.coveragePct.toFixed(0)}%)` : "—", t("kpi_catchment_best"), t("tip_catchment_best")),
-    kpiCard("kpi-ca-worst", worst ? `${worst.catchment} (${worst.coveragePct.toFixed(0)}%)` : "—", t("kpi_catchment_worst"), t("tip_catchment_worst"), true),
+    kpiCard("kpi-ca-best", best ? `${friendlyCatchment(best.catchment)} (${best.coveragePct.toFixed(0)}%)` : "—", t("kpi_catchment_best"), t("tip_catchment_best")),
+    kpiCard("kpi-ca-worst", worst ? `${friendlyCatchment(worst.catchment)} (${worst.coveragePct.toFixed(0)}%)` : "—", t("kpi_catchment_worst"), t("tip_catchment_worst"), true),
   ].join("");
 
   const chartData = [...data].sort((a, b) => (b.coveragePct ?? -1) - (a.coveragePct ?? -1));
   state.charts.catchmentCoverage = new Chart(document.getElementById("chart-catchment-coverage"), {
     type: "bar",
     data: {
-      labels: chartData.map((d) => d.catchment),
+      labels: chartData.map((d) => friendlyCatchment(d.catchment)),
       datasets: [{
         label: t("chart_coverage_pct"),
         data: chartData.map((d) => d.coveragePct ?? 0),
@@ -800,7 +810,7 @@ function renderCatchments(records) {
 
   tbody.innerHTML = data.map((d) => `
     <tr data-catchment="${d.catchment}">
-      <td><strong>${d.catchment}</strong></td>
+      <td title="${escapeHtml(d.catchment)}"><strong>${friendlyCatchment(d.catchment)}</strong></td>
       <td>${d.district || "—"}</td>
       <td>${d.sitesAssessed}</td>
       <td>${d.activeAgencies}</td>
@@ -981,6 +991,15 @@ function renderDataQuality(records) {
 
 // ---------- Agency-sector matrix + single-provider sectors (P2.5) ----------
 
+// Short sector names shown under the icons in the matrix header — icons
+// alone are ambiguous to first-time users, full names don't fit 11 columns.
+const SECTOR_ABBR = {
+  "CCCM": "CCCM", "General Protection": "Prot", "Child Protection": "CP",
+  "GBV": "GBV", "HLP": "HLP", "Food Security and Livelihoods": "FSL",
+  "Health": "Health", "Education": "Edu", "Nutrition": "Nut",
+  "Shelter/NFI": "SNFI", "WASH": "WASH",
+};
+
 function renderAgencyMatrix(records) {
   const container = document.getElementById("agency-matrix-container");
   if (!container) return;
@@ -992,17 +1011,37 @@ function renderAgencyMatrix(records) {
   // Top 15 agencies by sites covered keeps the matrix scannable; the full
   // agency list remains available in the Agencies charts and exports.
   const topAgencies = computeSitesByAgency(records, 15).map((r) => r.agency);
-  let html = `<table class="data-table compact-table"><thead><tr><th>${t("matrix_agency")}</th>${SECTORS.map((s) => `<th title="${escapeHtml(s)}">${sectorIcon(s, 16)}</th>`).join("")}</tr></thead><tbody>`;
-  topAgencies.forEach((agency) => {
-    const cells = SECTORS.map((sector) => {
-      const n = new Set(covered.filter((r) => r.agency === agency && r.sector === sector).map(siteKey)).size;
-      return `<td class="matrix-cell${n ? "" : " matrix-zero"}" data-agency="${escapeHtml(agency)}" title="${escapeHtml(agency)} — ${escapeHtml(sector)}: ${n}">${n || ""}</td>`;
+
+  // Pre-compute the whole grid so cells can be heat-shaded relative to the
+  // largest cell, and totals derived without a second pass.
+  const grid = topAgencies.map((agency) =>
+    SECTORS.map((sector) => new Set(covered.filter((r) => r.agency === agency && r.sector === sector).map(siteKey)).size)
+  );
+  const maxCell = Math.max(1, ...grid.flat());
+  const rowTotals = grid.map((row) => row.reduce((a, b) => a + b, 0));
+  const colTotals = SECTORS.map((s) =>
+    new Set(covered.filter((r) => r.sector === s).map(siteKey)).size
+  );
+
+  const headCells = SECTORS.map(
+    (s) => `<th class="matrix-head" title="${escapeHtml(s)}"><div>${sectorIcon(s, 18)}</div><div class="matrix-abbr">${SECTOR_ABBR[s] || s}</div></th>`
+  ).join("");
+
+  let html = `<table class="data-table matrix-table"><thead><tr><th>${t("matrix_agency")}</th>${headCells}<th class="matrix-total-col">${t("matrix_total")}</th></tr></thead><tbody>`;
+  topAgencies.forEach((agency, i) => {
+    const cells = SECTORS.map((sector, j) => {
+      const n = grid[i][j];
+      // Heat scale: cell background intensity ~ value, dark cells get white text.
+      const alpha = n ? 0.12 + 0.78 * (n / maxCell) : 0;
+      const style = n ? ` style="background: rgba(23,103,122,${alpha.toFixed(2)}); color: ${alpha > 0.55 ? "#fff" : "inherit"};"` : "";
+      return `<td class="matrix-cell${n ? "" : " matrix-zero"}"${style} data-agency="${escapeHtml(agency)}" title="${escapeHtml(agency)} — ${escapeHtml(sector)}: ${n} sites">${n || ""}</td>`;
     }).join("");
-    html += `<tr><td><strong>${escapeHtml(agency)}</strong></td>${cells}</tr>`;
+    html += `<tr><td class="matrix-agency" data-agency="${escapeHtml(agency)}"><strong>${escapeHtml(agency)}</strong></td>${cells}<td class="matrix-total-col"><strong>${rowTotals[i]}</strong></td></tr>`;
   });
+  html += `<tr class="matrix-total-row"><td>${t("matrix_total")}</td>${colTotals.map((n, j) => `<td title="${escapeHtml(SECTORS[j])}: ${n} sites">${n || ""}</td>`).join("")}<td></td></tr>`;
   html += "</tbody></table>";
   container.innerHTML = html;
-  container.querySelectorAll(".matrix-cell").forEach((cell) => {
+  container.querySelectorAll(".matrix-cell, .matrix-agency").forEach((cell) => {
     cell.addEventListener("click", (evt) => toggleFilterValue("agency", cell.dataset.agency, evt.ctrlKey || evt.metaKey));
   });
 }
