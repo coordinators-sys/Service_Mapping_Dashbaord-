@@ -46,6 +46,31 @@ function sectorIcon(sector, size = 18) {
 Chart.defaults.scale.grid.display = false;
 Chart.defaults.scale.border = Object.assign({}, Chart.defaults.scale.border, { display: true });
 
+// Chart.js formatters (ticks, tooltips, value labels) are NOT guaranteed a
+// number — depending on the callback they may receive a raw value, a parsed
+// {x,y}, or a full tooltip/scale context object. Calling Math.round() on such
+// an object throws "Cannot convert object to primitive value". safeNumber
+// coerces any of those shapes to a finite number so no formatter can crash.
+function safeNumber(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (value && typeof value === "object") {
+    if (typeof value.raw === "number") return value.raw;
+    if (typeof value.parsed === "number") return value.parsed;
+    if (typeof value.y === "number") return value.y;
+    if (value.parsed && typeof value.parsed === "object" && typeof value.parsed.y === "number") return value.parsed.y;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatNumber(value) {
+  return Math.round(safeNumber(value)).toLocaleString("en-US");
+}
+
+function formatPct(value) {
+  return `${Math.round(safeNumber(value))}%`;
+}
+
 // Value labels on bars/points — tiny custom plugin instead of pulling in
 // chartjs-plugin-datalabels (keeps dependencies minimal per the perf
 // requirements). Opt in per chart via options.plugins.barValues:
@@ -71,9 +96,10 @@ const barValueLabels = {
       const meta = chart.getDatasetMeta(di);
       if (meta.hidden) return;
       meta.data.forEach((el, i) => {
-        const value = ds.data[i];
-        if (value == null || (center && value === 0)) return;
-        const label = opts.format ? opts.format(value) : String(value);
+        const raw = ds.data[i];
+        if (raw == null || (center && safeNumber(raw) === 0)) return;
+        const value = safeNumber(raw);
+        const label = opts.format ? opts.format(value) : formatNumber(value);
 
         if (center) {
           // Inside stacked segments, only when the segment is wide enough.
@@ -105,8 +131,8 @@ const barValueLabels = {
 };
 Chart.register(barValueLabels);
 
-const PCT_LABEL = { format: (v) => `${Math.round(v)}%` };
-const COUNT_LABEL = { format: (v) => String(v) };
+const PCT_LABEL = { format: (v) => formatPct(v) };
+const COUNT_LABEL = { format: (v) => formatNumber(v) };
 
 function destroyChart(id) {
   const canvas = document.getElementById(id);
@@ -142,8 +168,9 @@ function computeCoverageTrend(records, sector) {
     .map(([period, statuses]) => {
       const covered = statuses.filter((s) => s === "Yes").length;
       const notCovered = statuses.filter((s) => s === "No").length;
-      const total = covered + notCovered;
-      return { period, coveragePct: total ? (covered / total) * 100 : 0 };
+      const unknown = statuses.filter((s) => s === "Unknown").length;
+      const total = covered + notCovered; // denominator excludes Unknown (never counted as No)
+      return { period, covered, notCovered, unknown, assessed: total, coveragePct: total ? (covered / total) * 100 : 0 };
     })
     .sort((a, b) => a.period.localeCompare(b.period));
 }
@@ -196,8 +223,29 @@ function computeSiteGapProfiles(records) {
 
   return Array.from(bySite.values()).map((site) => {
     const gaps = SECTORS.filter((s) => site.statuses[s] === "No");
+    const unknownSectors = SECTORS.filter((s) => site.statuses[s] === "Unknown" || site.statuses[s] === undefined);
     const noProvider = SECTORS.every((s) => site.statuses[s] !== "Yes");
-    return { ...site, gaps, gapCount: gaps.length, noProvider };
+    const missingAllPriority = PRIORITY_SECTORS.every((p) => gaps.includes(p));
+
+    // "Critical gap" = an approved threshold, distinct from "has any confirmed
+    // gap". A site is critical if it meets ANY of: missing 3+ priority sectors;
+    // missing all priority services; or missing both Health AND WASH.
+    const priorityGaps = PRIORITY_SECTORS.filter((p) => gaps.includes(p)).length;
+    const isCritical =
+      priorityGaps >= 3 ||
+      missingAllPriority ||
+      (gaps.includes("Health") && gaps.includes("WASH"));
+
+    return {
+      ...site,
+      gaps,
+      gapCount: gaps.length,
+      unknownSectors,
+      unknownCount: unknownSectors.length,
+      noProvider,
+      missingAllPriority,
+      isCritical,
+    };
   });
 }
 
@@ -215,11 +263,26 @@ function generateInsights(sectorCoverage, siteProfiles, trendInsight) {
   const strong = (v) => `<strong>${v}</strong>`;
   const reportable = sectorCoverage.filter((s) => s.reportableTotal > 0);
   if (reportable.length) {
+    // Flagship insight: percentage WITH its full count breakdown, never bare.
     const best = reportable.reduce((a, b) => (b.coveragePct > a.coveragePct ? b : a));
-    insights.push(t("insight_highest", { sector: strong(best.sector), pct: strong(best.coveragePct.toFixed(0)) }));
+    insights.push(
+      t("insight_highest_full", {
+        sector: strong(best.sector),
+        pct: strong(`${Math.round(best.coveragePct)}%`),
+        assessed: strong(formatNumber(best.reportableTotal)),
+        covered: strong(formatNumber(best.covered)),
+        notCovered: strong(formatNumber(best.notCovered)),
+        unknown: strong(formatNumber(best.unknown)),
+      })
+    );
     const worst = reportable.reduce((a, b) => (b.notCovered > a.notCovered ? b : a));
     if (worst.notCovered > 0) {
-      insights.push(t("insight_gap", { sector: strong(worst.sector), n: strong(worst.notCovered.toLocaleString()) }));
+      insights.push(t("insight_gap", { sector: strong(worst.sector), n: strong(formatNumber(worst.notCovered)) }));
+    }
+    // Largest unknown-data burden — a distinct, decision-relevant gap.
+    const mostUnknown = sectorCoverage.reduce((a, b) => (b.unknown > a.unknown ? b : a), { unknown: 0 });
+    if (mostUnknown.unknown > 0) {
+      insights.push(t("insight_unknown", { sector: strong(mostUnknown.sector), n: strong(formatNumber(mostUnknown.unknown)) }));
     }
   }
   const byDistrict = new Map();
@@ -232,7 +295,7 @@ function generateInsights(sectorCoverage, siteProfiles, trendInsight) {
   }
   if (trendInsight) insights.push(trendInsight);
   if (!insights.length) insights.push(t("insight_none"));
-  return insights.slice(0, 4);
+  return insights.slice(0, 5);
 }
 
 // Question 8: how coverage changes between reporting periods. Compares the
@@ -321,8 +384,26 @@ function renderCoverageTrendChart(records) {
     options: {
       responsive: true, maintainAspectRatio: false,
       layout: { padding: { top: 18 } },
-      scales: { y: { min: 0, max: 100 } },
-      plugins: { barValues: PCT_LABEL },
+      scales: {
+        y: { min: 0, max: 100, ticks: { callback: (v) => formatPct(v) } },
+      },
+      plugins: {
+        barValues: PCT_LABEL,
+        tooltip: {
+          callbacks: {
+            // Tooltip callbacks receive a context object, not a number — hence
+            // safeNumber. Show numerator/denominator, not just the percentage.
+            label: (ctx2) => {
+              const d = data[ctx2.dataIndex] || {};
+              return `${formatPct(ctx2.parsed.y)} — ${formatNumber(d.covered)} of ${formatNumber(d.assessed)} covered`;
+            },
+            afterLabel: (ctx2) => {
+              const d = data[ctx2.dataIndex] || {};
+              return `Not covered: ${formatNumber(d.notCovered)} · Unknown: ${formatNumber(d.unknown)}`;
+            },
+          },
+        },
+      },
       onClick: (evt, elements) => {
         if (!elements.length) return;
         const period = data[elements[0].index].period;
@@ -435,16 +516,22 @@ function renderOverview(records) {
   const regions = new Set(records.map((r) => r.region).filter(Boolean));
   const districts = new Set(records.map((r) => r.district).filter(Boolean));
   const siteProfiles = computeSiteGapProfiles(records);
-  const sitesWithServices = siteProfiles.filter((s) => !s.noProvider).length;
-  const criticalGaps = siteProfiles.filter((s) => s.gapCount > 0).length;
+  const assessed = assessedSites.size;
+  const confirmedGaps = siteProfiles.filter((s) => s.gapCount > 0).length;
+  const criticalGaps = siteProfiles.filter((s) => s.isCritical).length;
+  const unknownSites = siteProfiles.filter((s) => s.unknownCount > 0).length;
+  const denom = (n) => t("kpi_of", { a: formatNumber(n), b: formatNumber(assessed) });
 
   document.getElementById("kpi-row").innerHTML = [
-    kpiCard("kpi-assessed", assessedSites.size.toLocaleString(), t("kpi_sites_assessed"), t("tip_sites_assessed")),
-    kpiCard("kpi-agencies", activeAgencies.size.toLocaleString(), t("kpi_active_agencies"), t("tip_active_agencies")),
-    kpiCard("kpi-regions", regions.size.toLocaleString(), t("kpi_regions"), t("tip_regions")),
-    kpiCard("kpi-districts", districts.size.toLocaleString(), t("kpi_districts"), t("tip_districts")),
-    kpiCard("kpi-with-services", sitesWithServices.toLocaleString(), t("kpi_sites_services"), t("tip_sites_services")),
-    kpiCard("kpi-critical-gaps", criticalGaps.toLocaleString(), t("kpi_critical_gaps"), t("tip_critical_gaps"), true),
+    kpiCard("kpi-assessed", formatNumber(assessed), t("kpi_sites_assessed"), t("tip_sites_assessed")),
+    kpiCard("kpi-agencies", formatNumber(activeAgencies.size), t("kpi_active_agencies"), t("tip_active_agencies")),
+    kpiCard("kpi-regions", formatNumber(regions.size), t("kpi_regions"), t("tip_regions")),
+    kpiCard("kpi-districts", formatNumber(districts.size), t("kpi_districts"), t("tip_districts")),
+    // Renamed: "Critical service gaps" -> "Sites with confirmed gaps" (>=1
+    // confirmed unavailable sector). "Critical" is now a separate, thresholded KPI.
+    kpiCard("kpi-confirmed-gaps", denom(confirmedGaps), t("kpi_confirmed_gaps"), t("tip_confirmed_gaps"), true),
+    kpiCard("kpi-critical-gaps", denom(criticalGaps), t("kpi_critical_gaps"), t("tip_critical_gaps"), true),
+    kpiCard("kpi-unknown-sites", denom(unknownSites), t("kpi_unknown_sites"), t("tip_unknown_sites")),
   ].join("");
 
   const sectorCoverage = computeSectorCoverage(records);
@@ -463,10 +550,13 @@ function renderSectorChips(sectorCoverage) {
   container.innerHTML = sectorCoverage
     .map((s) => {
       const active = filters.sector.has(s.sector);
-      const pct = s.reportableTotal ? `${s.coveragePct.toFixed(0)}%` : "—";
-      return `<button type="button" class="sector-chip${active ? " active" : ""}" data-sector="${s.sector}" title="${s.sector}: ${pct}">
+      const pct = s.reportableTotal ? `${Math.round(s.coveragePct)}%` : "—";
+      // Tooltip carries the full status breakdown so the % is never shown
+      // without its numerator/denominator + the unknown burden.
+      const tip = `${s.sector} — ${t("chart_yes")}: ${s.covered}, ${t("chart_no")}: ${s.notCovered}, ${t("chart_unknown")}: ${s.unknown} (${t("coverage_of", { c: s.covered, n: s.reportableTotal })})`;
+      return `<button type="button" class="sector-chip${active ? " active" : ""}" data-sector="${escapeHtml(s.sector)}" title="${escapeHtml(tip)}">
         ${sectorIcon(s.sector, 22)}
-        <span class="sector-chip-name">${s.sector}</span>
+        <span class="sector-chip-name">${escapeHtml(s.sector)}</span>
         <span class="sector-chip-pct">${pct}</span>
       </button>`;
     })

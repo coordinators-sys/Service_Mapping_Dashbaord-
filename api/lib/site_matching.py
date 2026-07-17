@@ -128,6 +128,10 @@ class MasterSiteIndex:
 
 
 def load_master_sites(csv_path: str) -> list[MasterSite]:
+    # Import here to avoid a circular import (transformations imports nothing
+    # from this module, but keeping the dependency direction one-way).
+    from api.lib.transformations import canonical_name
+
     sites = []
     with open(csv_path, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
@@ -137,8 +141,8 @@ def load_master_sites(csv_path: str) -> list[MasterSite]:
                     cccm_site_id=row.get("cccm_site_id", ""),
                     site_name=row.get("site_name", ""),
                     alternative_names=alt_names,
-                    region=row.get("region", ""),
-                    district=row.get("district", ""),
+                    region=canonical_name("region", row.get("region", "")),
+                    district=canonical_name("district", row.get("district", "")),
                     catchment=row.get("catchment") or None,
                     latitude=float(row["latitude"]) if row.get("latitude") else None,
                     longitude=float(row["longitude"]) if row.get("longitude") else None,

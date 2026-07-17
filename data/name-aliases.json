@@ -1,0 +1,14 @@
+{
+  "_comment": "Administrative-name standardization. Keys are lowercased/trimmed raw values as they appear in Kobo or ZiteManager; values are the single official spelling used everywhere in the dashboard. Applied server-side in api/lib/transformations.py and zite_transform.py so filters, KPIs, charts, tables, maps and exports all receive one canonical value. Only add a mapping once the merge has been reviewed — do not merge two genuinely different locations.",
+  "district": {
+    "mogadishu dayniile": "Daynile",
+    "mogadishu daynile": "Daynile",
+    "dayniile": "Daynile",
+    "mogadishu khada": "Kahda",
+    "mogadishu kahda": "Kahda",
+    "khada": "Kahda",
+    "taleek": "Taleex"
+  },
+  "region": {},
+  "agency": {}
+}

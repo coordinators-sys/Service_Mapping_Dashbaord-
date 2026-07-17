@@ -44,10 +44,32 @@ def _load_pcodes() -> dict:
         return json.load(f)
 
 
+_ALIASES_PATH = os.path.join(_PROJECT_ROOT, "data", "name-aliases.json")
+
+
+@lru_cache(maxsize=1)
+def _load_aliases() -> dict:
+    if not os.path.isfile(_ALIASES_PATH):
+        return {"district": {}, "region": {}, "agency": {}}
+    with open(_ALIASES_PATH, encoding="utf-8") as f:
+        data = json.load(f)
+    return {k: v for k, v in data.items() if not k.startswith("_")}
+
+
+def canonical_name(kind: str, value: str | None) -> str | None:
+    """Map a raw admin/agency name to its single official spelling via the
+    reviewed alias table (data/name-aliases.json). Unlisted values pass
+    through unchanged — nothing is silently merged."""
+    if not value:
+        return value
+    return _load_aliases().get(kind, {}).get(str(value).strip().lower(), value)
+
+
 def resolve_region(pcode: str | None) -> str | None:
     if not pcode:
         return None
-    return _load_pcodes()["regions"].get(pcode, pcode)
+    name = _load_pcodes()["regions"].get(pcode, pcode)
+    return canonical_name("region", name)
 
 
 def resolve_district(pcode: str | None) -> tuple[str | None, str | None]:
@@ -57,8 +79,8 @@ def resolve_district(pcode: str | None) -> tuple[str | None, str | None]:
         return None, None
     entry = _load_pcodes()["districts"].get(pcode)
     if not entry:
-        return pcode, None
-    return entry["name"], resolve_region(entry.get("region_code"))
+        return canonical_name("district", pcode), None
+    return canonical_name("district", entry["name"]), resolve_region(entry.get("region_code"))
 
 
 def find_by_suffix(raw: dict, suffix: str):
