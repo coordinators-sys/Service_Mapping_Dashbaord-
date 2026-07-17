@@ -59,6 +59,16 @@ APP_ENV = _env("APP_ENV", "development")
 # registry (a different system from Kobo — see api/lib/zite_client.py).
 ZITEMANAGER_REPORT_URL = _env("ZITEMANAGER_REPORT_URL")
 
+# Protection safeguard: sectors whose provider identity is masked in the
+# PUBLIC payload (agency + activity replaced; coverage Yes/No/Unknown kept so
+# aggregate statistics still work). Conservative default is GBV — naming the
+# GBV provider at an exact site location on a public dashboard is a
+# protection risk. CCCM coordination can widen ("GBV,Child Protection"),
+# or disable entirely (MASK_SENSITIVE_SECTORS="") once a policy is agreed.
+MASK_SENSITIVE_SECTORS = tuple(
+    s.strip() for s in _env("MASK_SENSITIVE_SECTORS", "GBV").split(",") if s.strip()
+)
+
 SECTORS = (
     "CCCM",
     "General Protection",

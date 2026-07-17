@@ -14,6 +14,7 @@ const TRANSLATIONS = {
     f_region: "Region", f_district: "District", f_catchment: "Catchment Area",
     f_site: "Site Name", f_period: "Reporting Period", f_sector: "Sector", f_agency: "Agency",
     f_coverage: "Coverage status",
+    f_source: "Data source",
     reset: "Reset filters",
     caption_default: "Showing all service-mapping reports. Click any chart, KPI, map area or use the filters above to drill down.",
     caption_filtered: "Showing {what} across {n} assessed sites.",
@@ -69,9 +70,11 @@ const TRANSLATIONS = {
 
     // Methodology (rendered in the drawer AND exported as text)
     meth_title: "Methodology & indicator definitions",
-    meth_updated: "Last methodology update: 2026-07-17.",
+    meth_updated: "Last methodology update: 2026-07-18.",
     methodology: [
-      ["Data sources", "KoboToolbox service-mapping submissions plus IOM ZiteManager service-provider records, merged into one record set (each record is tagged with its source). Data refreshes from the sources on load, cached server-side for 5 minutes, with a daily scheduled refresh."],
+      ["Data sources", "KoboToolbox service-mapping submissions plus IOM ZiteManager service-provider records, merged into one record set (each record is tagged with its source; a Data source filter allows Combined/Kobo/ZiteManager views). Data refreshes from the sources on load, cached server-side for 5 minutes, with a daily scheduled refresh."],
+      ["Analytical grain", "Every coverage figure is computed on canonical site × sector × reporting-period cells, never on raw records — a site reported by both Kobo and ZiteManager counts once. Cell status: any confirmed Yes → Covered; else any explicit No → Not covered; else Unknown."],
+      ["Source conflicts", "When one record confirms a service and another explicitly denies it for the same site-sector-period, the cell resolves to Covered (provider presence is direct evidence) but is flagged as a conflict, both values are retained, and the count is shown in the Data Quality section. Nothing is silently overwritten."],
       ["Reporting period", "Calendar months (YYYY-MM), derived from each submission's date. The dashboard is updated monthly."],
       ["Site denominator", "The CCCM master site list (permanent CCCM Site IDs) is the authoritative site reference. The reporting-completeness rate uses the FULL master list as denominator — no per-round 'expected to report' scope is configured yet, so that rate understates completeness where only part of the list was asked to report."],
       ["Covered", "At least one confirmed active provider delivers the sector at the site in the selected period."],
@@ -83,7 +86,7 @@ const TRANSLATIONS = {
       ["Site matching hierarchy", "1) exact CCCM Site ID, 2) exact official name, 3) approved alternative name, 4) GPS proximity (150 m), 5) fuzzy name (flagged 'needs review'), 6) unmatched — flagged, never auto-created as a new site."],
       ["Catchment assignment", "Master-list sites are located inside the 2025 catchment boundary polygons; catchment labels are district-qualified (e.g. Baidoa · CA01) because CA codes repeat across districts."],
       ["Administrative names", "Region/district names are standardized against a reviewed alias table (e.g. 'Mogadishu Dayniile' → Daynile). Nothing is merged without review."],
-      ["Period comparison", "Two comparisons are shown: all reported sites per period, and like-for-like (only sites reported in BOTH periods, shown when at least 20 such sites exist) so trend claims are not artifacts of a changed reporting cohort."],
+      ["Period comparison", "Two comparisons are shown: all reported sites per period, and like-for-like (only sites reported in BOTH periods). The like-for-like figure is suppressed — with an explicit note — unless the comparable cohort has at least 100 sites AND represents at least 30% of the current period's cohort."],
       ["Known limitations", "No per-service breakdown (the form asks per sector); partner types not yet mapped; flood/river-risk layers not yet integrated; no per-round expected-reporting scope."],
     ],
 
@@ -96,7 +99,7 @@ const TRANSLATIONS = {
     ms_no_match: "No matching {noun}",
     noun_regions: "regions", noun_districts: "districts", noun_catchments: "catchments",
     noun_sites: "sites", noun_periods: "periods", noun_sectors: "sectors",
-    noun_agencies: "agencies", noun_statuses: "statuses",
+    noun_agencies: "agencies", noun_statuses: "statuses", noun_sources: "sources",
 
     // Filter chips / notices / counts
     active_filters: "Active filters:",
@@ -162,6 +165,7 @@ const TRANSLATIONS = {
     // Like-for-like trend
     insight_lfl_up: "Like-for-like: coverage increased by {pts} points among the {n} sites reported in both periods.",
     insight_lfl_down: "Like-for-like: coverage declined by {pts} points among the {n} sites reported in both periods.",
+    insight_lfl_suppressed: "Like-for-like comparison suppressed: only {n} sites appear in both periods ({share}% of the current cohort) — below the reliability threshold (≥100 sites and ≥30%).",
 
     // Drawer extras
     drawer_unknown: "Unknown sectors",
@@ -178,6 +182,8 @@ const TRANSLATIONS = {
     download_methodology: "Download methodology",
 
     // Data-quality KPIs
+    kpi_dq_conflicts: "Source conflicts (site-sector cells)",
+    tip_dq_conflicts: "Site-sector-period cells where one record confirms the service (Yes) and another explicitly denies it (No) — often Kobo vs ZiteManager disagreement. Unit: canonical site×sector×period cells, not raw records. The cell resolves to Yes (provider presence is direct evidence) but both values are retained.",
     kpi_dq_passed: "Records passing all checks",
     kpi_dq_critical: "Records with critical issues",
     kpi_dq_unmatched: "Unmatched site records",
@@ -256,6 +262,7 @@ const TRANSLATIONS = {
     f_region: "Gobolka", f_district: "Degmada", f_catchment: "Aagga Daryeelka",
     f_site: "Magaca Goobta", f_period: "Xilliga Warbixinta", f_sector: "Qaybta", f_agency: "Hay'adda",
     f_coverage: "Xaaladda daboolka",
+    f_source: "Isha xogta",
     reset: "Dib u deji shaandhooyinka",
     caption_default: "Waxaa la muujinayaa dhammaan warbixinnada khariidaynta adeegyada. Riix shax, KPI, aag khariidad ah ama isticmaal shaandhooyinka kore.",
     caption_filtered: "Waxaa la muujinayaa {what} oo ka kooban {n} goobood oo la qiimeeyay.",
@@ -307,9 +314,11 @@ const TRANSLATIONS = {
     download_menu_title: "Soo deji xogta",
     methodology_btn: "Habka shaqada",
     meth_title: "Habka shaqada iyo qeexitaannada tilmaamayaasha",
-    meth_updated: "Cusboonaysiintii u dambaysay ee habka shaqada: 2026-07-17.",
+    meth_updated: "Cusboonaysiintii u dambaysay ee habka shaqada: 2026-07-18.",
     methodology: [
-      ["Ilaha xogta", "Warbixinnada khariidaynta adeegyada ee KoboToolbox iyo diiwaannada adeeg-bixiyeyaasha ee IOM ZiteManager, oo la isku daray hal xog-urur (diiwaan kastaa wuxuu wataa calaamadda ishiisa). Xogta waxaa laga soo cusboonaysiiyaa ilaha marka la furo, iyadoo server-ka lagu kaydiyo 5 daqiiqo, laguna daro cusboonaysiin maalinle ah oo la qorsheeyay."],
+      ["Ilaha xogta", "Warbixinnada khariidaynta adeegyada ee KoboToolbox iyo diiwaannada adeeg-bixiyeyaasha ee IOM ZiteManager, oo la isku daray hal xog-urur (diiwaan kastaa wuxuu wataa calaamadda ishiisa; shaandhada Isha xogta waxay oggolaataa aragtiyo Isku-dar/Kobo/ZiteManager). Xogta waxaa laga soo cusboonaysiiyaa ilaha marka la furo, iyadoo server-ka lagu kaydiyo 5 daqiiqo, laguna daro cusboonaysiin maalinle ah oo la qorsheeyay."],
+      ["Halbeegga falanqaynta", "Tiro kasta oo daboolka ah waxaa lagu xisaabiyaa unugyada goob × qayb × xilli, weligeed diiwaannada ceyriin — goob ay soo sheegeen Kobo iyo ZiteManager labaduba waxay tirsataa hal mar. Xaaladda unugga: Haa la xaqiijiyay → La daboolay; haddii kale Maya cad → Aan la daboolin; haddii kale Lama yaqaan."],
+      ["Iskahorimaadka ilaha", "Marka diiwaan uu xaqiijiyo adeegga mid kalena uu si cad u diido isla goob-qayb-xilli, unuggu wuxuu u xallilmaa La daboolay (joogitaanka bixiyuhu waa caddayn toos ah) laakiin waxaa lagu calaamadeeyaa iskahorimaad, labada qiimena waa la haynayaa, tiradana waxaa lagu muujiyaa qaybta Tayada Xogta. Waxba si aamusan looma beddelo."],
       ["Xilliga warbixinta", "Bilo taariikheed (SSSS-BB), oo laga soo qaatay taariikhda warbixin kasta. Dashboard-ka waxaa la cusboonaysiiyaa bil kasta."],
       ["Tirokoobka goobaha (denominator)", "Liiska rasmiga ah ee goobaha CCCM (Aqoonsiyada joogtada ah ee CCCM) ayaa ah tixraaca rasmiga ah. Heerka dhamaystirka warbixintu wuxuu isticmaalaa liiska OO DHAN — wali lama qaabeynin cabbir 'la filayo inay warbixiyaan' oo xilli kasta ah, sidaas darteed heerkaasi wuu hoos dhigaa dhamaystirka marka qayb kaliya oo liiska ah la weydiistay inay warbixiso."],
       ["La daboolay", "Ugu yaraan hal adeeg-bixiye firfircoon oo la xaqiijiyay ayaa qaybta ka fuliya goobta xilliga la doortay."],
@@ -321,7 +330,7 @@ const TRANSLATIONS = {
       ["Kala-horreynta isku-xirka goobaha", "1) Aqoonsiga CCCM oo sax ah, 2) magaca rasmiga ah oo sax ah, 3) magac kale oo la ansixiyay, 4) u-dhawaanshaha GPS (150 m), 5) magac isku-eg (calaamad 'u baahan dib-u-eegis'), 6) aan la isku xirin — waa la calaamadeeyaa, weligeedna si toos ah looma abuuro goob cusub."],
       ["U-meelaynta aagagga daryeelka", "Goobaha liiska rasmiga ah waxaa la dhex-meeleeyaa xuduudaha aagagga 2025; magacyada aagagga waxaa lagu sifeeyaa degmada (tusaale: Baidoa · CA01) sababtoo ah lambarrada CA way ku soo noqnoqdaan degmooyin kala duwan."],
       ["Magacyada maamulka", "Magacyada gobollada/degmooyinka waxaa lagu hagaajiyaa shax magac-beddel ah oo dib loo eegay (tusaale: 'Mogadishu Dayniile' → Daynile). Waxba laguma daro dib-u-eegis la'aan."],
-      ["Isbarbardhigga xilliyada", "Waxaa la muujiyaa laba isbarbardhig: dhammaan goobaha warbixiyay xilli kasta, iyo isku-mid (kaliya goobaha warbixiyay LABADA xilli, la muujiyo marka ay jiraan ugu yaraan 20 goobood) si sheegashooyinka isbeddelku aysan ka dhalan isbeddel kooxda warbixisa."],
+      ["Isbarbardhigga xilliyada", "Waxaa la muujiyaa laba isbarbardhig: dhammaan goobaha xilli kasta, iyo isku-mid (kaliya goobaha warbixiyay LABADA xilli). Tirada isku-midka ah waa la joojiyaa — iyadoo qoraal cad la muujinayo — haddii kooxda la isbarbardhigi karo aysan gaarin ugu yaraan 100 goobood IYO ugu yaraan 30% kooxda xilliga hadda."],
       ["Xaddidaadaha la yaqaan", "Ma jiro kala-qaybin adeeg-adeeg (foomku wuxuu weydiiyaa qayb ahaan); noocyada bixiyeyaasha wali lama khariteynin; lakabyada halista fatahaadda/webiga wali laguma darin; ma jiro cabbir warbixineed oo xilli kasta ah."],
     ],
     dl_records: "Diiwaannada adeegga ee la shaandheeyay", dl_sites: "Goobaha iyo daboolka",
@@ -335,7 +344,7 @@ const TRANSLATIONS = {
     ms_no_match: "Lama helin {noun} u dhigma",
     noun_regions: "gobollo", noun_districts: "degmooyin", noun_catchments: "aagag",
     noun_sites: "goobo", noun_periods: "xilliyo", noun_sectors: "qaybo",
-    noun_agencies: "hay'ado", noun_statuses: "xaalado",
+    noun_agencies: "hay'ado", noun_statuses: "xaalado", noun_sources: "ilo",
 
     active_filters: "Shaandhooyinka firfircoon:",
     clear_all: "Tirtir dhammaan",
@@ -396,6 +405,7 @@ const TRANSLATIONS = {
 
     insight_lfl_up: "Isbarbardhig isku-mid ah: daboolku wuxuu kordhay {pts} dhibcood {n} goobood ee labada xilli warbixiyay.",
     insight_lfl_down: "Isbarbardhig isku-mid ah: daboolku wuxuu hoos u dhacay {pts} dhibcood {n} goobood ee labada xilli warbixiyay.",
+    insight_lfl_suppressed: "Isbarbardhigga isku-midka ah waa la joojiyay: kaliya {n} goobood ayaa ka muuqda labada xilli ({share}% kooxda hadda) — wuu ka hooseeyaa xadka la-isku-hallaynta (≥100 goobood iyo ≥30%).",
 
     drawer_unknown: "Qaybaha aan la garanayn",
     drawer_copy_id: "Koobbi Aqoonsiga",
@@ -409,6 +419,8 @@ const TRANSLATIONS = {
     dl_methodology: "Habka shaqada (qoraal)",
     download_methodology: "Soo deji habka shaqada",
 
+    kpi_dq_conflicts: "Iskahorimaad ilo (unug goob-qayb)",
+    tip_dq_conflicts: "Unugyada goob-qayb-xilli halkaas oo diiwaan uu xaqiijiyay adeegga (Haa) mid kalena uu si cad u diiday (Maya) — inta badan khilaaf u dhexeeya Kobo iyo ZiteManager. Halbeeggu waa unugyada goob×qayb×xilli, ma aha diiwaannada ceyriin. Unuggu wuxuu u xallilmaa Haa, labada qiimena waa la haynayaa.",
     kpi_dq_passed: "Diiwaannada dhammaan hubinta gudbay",
     kpi_dq_critical: "Diiwaannada leh arrimo halis ah",
     kpi_dq_unmatched: "Diiwaannada goob aan la isku xirin",

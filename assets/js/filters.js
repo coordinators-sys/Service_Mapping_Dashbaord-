@@ -21,6 +21,7 @@ const filters = {
   period: new Set(),
   sector: new Set(),
   agency: new Set(),
+  source: new Set(),
   service: new Set(),
   coverage: new Set(),
 };
@@ -49,6 +50,7 @@ function filtered(excludeDimension) {
     if (filters.agency.size && excludeDimension !== "agency" && !filters.agency.has(r.agency)) return false;
     if (filters.period.size && excludeDimension !== "period" && !filters.period.has(r.reportingPeriod)) return false;
     if (filters.coverage.size && excludeDimension !== "coverage" && !filters.coverage.has(r.coverageStatus)) return false;
+    if (filters.source.size && excludeDimension !== "source" && !filters.source.has(r.dataSource)) return false;
     return true;
   });
 }
@@ -78,6 +80,10 @@ function splitCatchment(value) {
   return { group, label };
 }
 
+function sourceLabel(v) {
+  return v === "kobo" ? "KoboToolbox" : v === "zitemanager" ? "IOM ZiteManager" : String(v);
+}
+
 // Readable form of a raw catchment value: "Gaalkacyo · CA01_GN" -> "Gaalkacyo North · CA01"
 function friendlyCatchment(value) {
   if (!value) return value;
@@ -94,6 +100,7 @@ const SLICER_CONFIG = [
   { dimension: "sector", labelKey: "f_sector", nounKey: "noun_sectors" },
   { dimension: "agency", labelKey: "f_agency", nounKey: "noun_agencies" },
   { dimension: "coverage", labelKey: "f_coverage", nounKey: "noun_statuses" },
+  { dimension: "source", labelKey: "f_source", nounKey: "noun_sources" },
 ];
 
 function initSlicers() {
@@ -132,6 +139,11 @@ function buildOptions(dimension) {
 
   if (dimension === "catchment") {
     return uniqueSorted(scoped, "catchment").map((v) => ({ value: v, ...splitCatchment(v) }));
+  }
+
+  if (dimension === "source") {
+    const present = Array.from(new Set(scoped.map((r) => r.dataSource).filter(Boolean))).sort();
+    return present.map((v) => ({ value: v, label: sourceLabel(v) }));
   }
 
   if (dimension === "coverage") {
@@ -173,9 +185,15 @@ function displayValue(dimension, value) {
     const rec = state.all.find((r) => siteKey(r) === value);
     return rec ? siteLabel(rec) : value;
   }
+  if (dimension === "source") {
+    const present = Array.from(new Set(scoped.map((r) => r.dataSource).filter(Boolean))).sort();
+    return present.map((v) => ({ value: v, label: sourceLabel(v) }));
+  }
+
   if (dimension === "coverage") {
     return t(value === "Yes" ? "chart_yes" : value === "No" ? "chart_no" : "chart_unknown");
   }
+  if (dimension === "source") return sourceLabel(value);
   return String(value);
 }
 

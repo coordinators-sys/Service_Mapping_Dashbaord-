@@ -115,6 +115,26 @@ def _build_clean_records(raw_submissions: list[dict]) -> list[dict]:
     return records
 
 
+def _mask_sensitive_sectors(records: list[dict]) -> None:
+    """Strip provider identity from sensitive sectors in the PUBLIC payload.
+
+    Coverage status (Yes/No/Unknown) is retained so sector statistics remain
+    correct; only WHO provides the service (agency, activity detail) is
+    masked. Applied server-side deliberately — client-side masking would
+    still ship the names in the JSON. Configured via MASK_SENSITIVE_SECTORS
+    (default: GBV) pending a formal CCCM data-protection decision.
+    """
+    if not settings.MASK_SENSITIVE_SECTORS:
+        return
+    sensitive = set(settings.MASK_SENSITIVE_SECTORS)
+    for r in records:
+        if r.get("sector") in sensitive:
+            if r.get("agency"):
+                r["agency"] = "Provider present (masked)"
+            if r.get("activity"):
+                r["activity"] = None
+
+
 def _fetch_zite_records() -> list[dict]:
     """Best-effort: a ZiteManager outage should never take down the whole
     dashboard — Kobo data still renders if this fails."""
@@ -208,6 +228,7 @@ def _build_fresh_payload() -> dict:
         records = _build_clean_records(raw_submissions)
         records += zite_records
         _normalize_agencies(records)  # across BOTH sources, so the same org isn't double-counted
+        _mask_sensitive_sectors(records)  # AFTER normalization so masking can't be undone by it
         sources_used = sorted({r["dataSource"] for r in records}) or ["kobo"]
         return {
             "records": records,

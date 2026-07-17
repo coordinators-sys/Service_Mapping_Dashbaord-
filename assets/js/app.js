@@ -71,6 +71,14 @@ async function loadData() {
     state.all = [];
   } finally {
     setLoading(false);
+    // Default the period filter to the latest reporting month so the header
+    // and filters always show the SAME period on first load (users can still
+    // clear it to see all periods; the trend chart is period-unfiltered by
+    // design so it keeps its full history either way).
+    if (!filters.period.size && state.all.length) {
+      const periods = Array.from(new Set(state.all.map((r) => r.reportingPeriod).filter(Boolean))).sort();
+      if (periods.length) filters.period.add(periods[periods.length - 1]);
+    }
     populateInitialFilterOptions();
     applyFilters();
   }

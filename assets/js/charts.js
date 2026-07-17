@@ -156,38 +156,27 @@ function destroyChart(id) {
 }
 
 // ---------- Aggregation ----------
+// All coverage math runs on the SEMANTIC LAYER (semantic.js): one cell per
+// canonical site × sector × period, never raw records — a site reported by
+// both Kobo and ZiteManager counts once. Cells are memoized per filtered
+// record-array identity (a new array is produced on every filter change).
+const _cellsCache = new WeakMap();
+
+function siteSectorCells(records) {
+  let cells = _cellsCache.get(records);
+  if (!cells) {
+    cells = buildSiteSectorStatus(records);
+    _cellsCache.set(records, cells);
+  }
+  return cells;
+}
 
 function computeSectorCoverage(records, sectors = SECTORS) {
-  return sectors.map((sector) => {
-    const rows = records.filter((r) => r.sector === sector);
-    const covered = rows.filter((r) => r.coverageStatus === "Yes").length;
-    const notCovered = rows.filter((r) => r.coverageStatus === "No").length;
-    const unknown = rows.filter((r) => r.coverageStatus === "Unknown").length;
-    const reportableTotal = covered + notCovered;
-    return {
-      sector, covered, notCovered, unknown, reportableTotal,
-      coveragePct: reportableTotal ? (covered / reportableTotal) * 100 : 0,
-    };
-  });
+  return sectorCoverageFromCells(siteSectorCells(records), sectors);
 }
 
 function computeCoverageTrend(records, sector) {
-  const scoped = sector ? records.filter((r) => r.sector === sector) : records;
-  const byPeriod = new Map();
-  scoped.forEach((r) => {
-    if (!r.reportingPeriod) return;
-    if (!byPeriod.has(r.reportingPeriod)) byPeriod.set(r.reportingPeriod, []);
-    byPeriod.get(r.reportingPeriod).push(r.coverageStatus);
-  });
-  return Array.from(byPeriod.entries())
-    .map(([period, statuses]) => {
-      const covered = statuses.filter((s) => s === "Yes").length;
-      const notCovered = statuses.filter((s) => s === "No").length;
-      const unknown = statuses.filter((s) => s === "Unknown").length;
-      const total = covered + notCovered; // denominator excludes Unknown (never counted as No)
-      return { period, covered, notCovered, unknown, assessed: total, coveragePct: total ? (covered / total) * 100 : 0 };
-    })
-    .sort((a, b) => a.period.localeCompare(b.period));
+  return coverageTrendFromCells(siteSectorCells(records), sector || null);
 }
 
 function computeAgenciesBySector(records) {
@@ -333,21 +322,28 @@ function computeTrendInsight(recordsIgnoringPeriodFilter) {
   const allSites = delta > 0.5 ? t("insight_trend_up", params) : delta < -0.5 ? t("insight_trend_down", params) : t("insight_trend_flat", params);
 
   // Like-for-like: same comparison restricted to sites reported in BOTH
-  // periods, so the trend claim can't be an artifact of a changed reporting
-  // cohort (e.g. hundreds of new sites entering the dataset).
+  // periods, computed on semantic cells (site×sector×period grain, no
+  // record double-counting). Reliability guards: suppressed with an explicit
+  // note unless the comparable cohort has >=100 sites AND represents >=30%
+  // of the current period's cohort — below that, a "trend" is more likely a
+  // cohort artifact than a real change.
   const sector = filters.sector.size === 1 ? Array.from(filters.sector)[0] : null;
-  const scoped = sector
-    ? recordsIgnoringPeriodFilter.filter((r) => r.sector === sector)
-    : recordsIgnoringPeriodFilter;
-  const sitesIn = (period) => new Set(scoped.filter((r) => r.reportingPeriod === period).map(siteKey).filter(Boolean));
-  const shared = new Set([...sitesIn(curr.period)].filter((s) => sitesIn(prev.period).has(s)));
+  const cells = siteSectorCells(recordsIgnoringPeriodFilter).filter((c) => !sector || c.sector === sector);
+  const sitesIn = (period) => new Set(cells.filter((c) => c.period === period).map((c) => c.site));
+  const currSites = sitesIn(curr.period);
+  const prevSites = sitesIn(prev.period);
+  const shared = new Set([...currSites].filter((s) => prevSites.has(s)));
 
   let likeForLike = null;
-  if (shared.size >= 20) {
+  const cohortShare = currSites.size ? shared.size / currSites.size : 0;
+  if (shared.size >= 100 && cohortShare >= 0.3) {
     const pctFor = (period) => {
-      const rows = scoped.filter((r) => r.reportingPeriod === period && shared.has(siteKey(r)));
-      const c = rows.filter((r) => r.coverageStatus === "Yes").length;
-      const n = rows.filter((r) => r.coverageStatus === "No").length;
+      let c = 0, n = 0;
+      for (const cell of cells) {
+        if (cell.period !== period || !shared.has(cell.site)) continue;
+        if (cell.status === "Yes") c += 1;
+        else if (cell.status === "No") n += 1;
+      }
       return c + n ? (c / (c + n)) * 100 : null;
     };
     const prevPct = pctFor(prev.period);
@@ -359,6 +355,11 @@ function computeTrendInsight(recordsIgnoringPeriodFilter) {
         n: strong(formatNumber(shared.size)),
       });
     }
+  } else if (shared.size > 0) {
+    likeForLike = t("insight_lfl_suppressed", {
+      n: formatNumber(shared.size),
+      share: Math.round(cohortShare * 100),
+    });
   }
   return [allSites, likeForLike].filter(Boolean);
 }
@@ -949,9 +950,15 @@ function renderDataQuality(records) {
   const total = records.length;
   const denom = (n) => t("kpi_of", { a: formatNumber(n), b: formatNumber(total) });
 
+  // Semantic-layer quality: conflicts are counted at the canonical
+  // site×sector×period grain (a Yes and a No recorded for the same cell),
+  // NOT per record — the unit is stated in the tooltip.
+  const sq = semanticQuality(siteSectorCells(records));
+
   kpiRow.innerHTML = [
     kpiCard("kpi-dq-passed", denom(passed), t("kpi_dq_passed"), t("tip_dq_passed")),
     kpiCard("kpi-dq-critical", denom(critical), t("kpi_dq_critical"), t("tip_dq_critical"), critical > 0),
+    kpiCard("kpi-dq-conflicts", t("kpi_of", { a: formatNumber(sq.conflicts), b: formatNumber(sq.totalCells) }), t("kpi_dq_conflicts"), t("tip_dq_conflicts"), sq.conflicts > 0),
     kpiCard("kpi-dq-unmatched", formatNumber(unmatched), t("kpi_dq_unmatched"), t("tip_dq_unmatched"), unmatched > 0),
     kpiCard("kpi-dq-coords", formatNumber(missingCoords), t("kpi_dq_missing_coords"), t("tip_dq_missing_coords")),
     kpiCard("kpi-dq-stale", formatNumber(stale), t("kpi_dq_stale"), t("tip_dq_stale")),
