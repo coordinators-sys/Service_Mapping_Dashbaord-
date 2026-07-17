@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="assets/css/dashboard.css?v=8" />
+  <link rel="stylesheet" href="assets/css/dashboard.css?v=9" />
 </head>
 <body>
   <header class="app-header">
@@ -253,6 +253,11 @@
         <div class="card-header sites-table-header">
           <h2><span id="sites-table-count">0 assessed sites</span></h2>
           <input type="text" id="sites-table-search" class="search-input" data-i18n-placeholder="search_placeholder" placeholder="Search district, site, catchment or agency…" />
+          <select id="sites-table-pagesize" class="control-select" aria-label="Rows per page">
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
           <button class="btn btn-primary" id="btn-export-csv" data-i18n="export_csv">Export CSV</button>
         </div>
         <div class="table-scroll">
@@ -318,6 +323,7 @@
     <button class="drawer-close" id="download-close">×</button>
     <h2 data-i18n="download_menu_title">Download data</h2>
     <div class="download-menu">
+      <button class="btn btn-primary btn-block" data-export="pdf" data-i18n="dl_pdf">Executive summary (PDF)</button>
       <button class="btn btn-light btn-block" data-export="records" data-i18n="dl_records">Filtered service records</button>
       <button class="btn btn-light btn-block" data-export="sites" data-i18n="dl_sites">Sites and coverage</button>
       <button class="btn btn-light btn-block" data-export="sectors" data-i18n="dl_sectors">Sector summary</button>
@@ -332,13 +338,13 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script src="assets/js/translations.js?v=8"></script>
-  <script src="assets/js/multiselect.js?v=8"></script>
-  <script src="assets/js/filters.js?v=8"></script>
-  <script src="assets/js/charts.js?v=8"></script>
-  <script src="assets/js/maps.js?v=8"></script>
-  <script src="assets/js/tables.js?v=8"></script>
-  <script src="assets/js/export.js?v=8"></script>
-  <script src="assets/js/app.js?v=8"></script>
+  <script src="assets/js/translations.js?v=9"></script>
+  <script src="assets/js/multiselect.js?v=9"></script>
+  <script src="assets/js/filters.js?v=9"></script>
+  <script src="assets/js/charts.js?v=9"></script>
+  <script src="assets/js/maps.js?v=9"></script>
+  <script src="assets/js/tables.js?v=9"></script>
+  <script src="assets/js/export.js?v=9"></script>
+  <script src="assets/js/app.js?v=9"></script>
 </body>
 </html>

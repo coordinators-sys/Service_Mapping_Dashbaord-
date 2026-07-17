@@ -80,41 +80,29 @@ function populateInitialFilterOptions() {
   refreshSlicerOptions();
 }
 
-// Single source of truth for methodology wording — rendered as HTML in the
-// drawer AND exported as plain text via the download menu, so the two can't
-// drift apart.
-const METHODOLOGY_SECTIONS = [
-  ["Data sources", "KoboToolbox service-mapping submissions plus IOM ZiteManager service-provider records, merged into one record set (each record is tagged with its source). Data refreshes from the sources on load, cached server-side for 5 minutes, with a daily scheduled refresh."],
-  ["Reporting period", "Calendar months (YYYY-MM), derived from each submission's date. The dashboard is updated monthly."],
-  ["Site denominator", "The CCCM master site list (permanent CCCM Site IDs) is the authoritative site reference. The reporting-completeness rate uses the FULL master list as denominator — no per-round 'expected to report' scope is configured yet, so that rate understates completeness where only part of the list was asked to report."],
-  ["Covered", "At least one confirmed active provider delivers the sector at the site in the selected period."],
-  ["Not covered (confirmed gap)", "The submission explicitly confirms the service is unavailable (a definite 'No')."],
-  ["Unknown", "The question was blank, contradictory, or not assessed. Unknown is NEVER counted as 'No' — it is excluded from the coverage denominator entirely."],
-  ["Coverage percentage", "Covered assessed sites ÷ (covered + not-covered assessed sites) × 100."],
-  ["Sites with confirmed gaps", "Assessed sites with at least one sector explicitly confirmed unavailable."],
-  ["Critical gap threshold", "A site is critical when it meets ANY of: missing 3+ priority sectors; missing all priority services; missing both Health and WASH. Priority sectors: Health, WASH, General Protection, Shelter/NFI."],
-  ["Site matching hierarchy", "1) exact CCCM Site ID, 2) exact official name, 3) approved alternative name, 4) GPS proximity (150 m), 5) fuzzy name (flagged 'needs review'), 6) unmatched — flagged, never auto-created as a new site."],
-  ["Catchment assignment", "Master-list sites are located inside the 2025 catchment boundary polygons; catchment labels are district-qualified (e.g. Baidoa · CA01) because CA codes repeat across districts."],
-  ["Administrative names", "Region/district names are standardized against a reviewed alias table (e.g. 'Mogadishu Dayniile' → Daynile). Nothing is merged without review."],
-  ["Period comparison", "Two comparisons are shown: all reported sites per period, and like-for-like (only sites reported in BOTH periods, shown when at least 20 such sites exist) so trend claims are not artifacts of a changed reporting cohort."],
-  ["Known limitations", "No per-service breakdown (the form asks per sector); partner types not yet mapped; flood/river-risk layers not yet integrated; no per-round expected-reporting scope."],
-];
+// Methodology wording lives in the translation dictionaries (EN + SO) so it
+// follows the interface language; rendered as HTML in the drawer AND
+// exported as plain text via the download menu from the same source.
+function methodologySections() {
+  const dict = TRANSLATIONS[currentLang()] || TRANSLATIONS.en;
+  return dict.methodology || TRANSLATIONS.en.methodology || [];
+}
 
 function buildMethodologyContent() {
   return `
-    <h2>Methodology &amp; indicator definitions</h2>
-    ${METHODOLOGY_SECTIONS.map(([h, b]) => `<p><strong>${h}</strong> — ${b}</p>`).join("")}
-    <p style="color:var(--text-muted);font-size:0.8rem;">Last methodology update: 2026-07-17.</p>
+    <h2>${t("meth_title")}</h2>
+    ${methodologySections().map(([h, b]) => `<p><strong>${h}</strong> — ${b}</p>`).join("")}
+    <p style="color:var(--text-muted);font-size:0.8rem;">${t("meth_updated")}</p>
     <button type="button" class="btn btn-primary" id="btn-download-methodology">${t("download_methodology")}</button>
   `;
 }
 
 function buildMethodologyText() {
   return [
-    "CCCM Cluster Somalia — Service Mapping Dashboard: Methodology & indicator definitions",
+    `CCCM Cluster Somalia — Service Mapping Dashboard: ${t("meth_title")}`,
     "",
-    ...METHODOLOGY_SECTIONS.map(([h, b]) => `${h}:\n${b}\n`),
-    "Last methodology update: 2026-07-17",
+    ...methodologySections().map(([h, b]) => `${h}:\n${b}\n`),
+    t("meth_updated"),
   ].join("\n");
 }
 

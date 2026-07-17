@@ -81,6 +81,7 @@ function exportByKind(kind) {
   const stamp = new Date().toISOString().slice(0, 10);
   const withMeta = (rows) => exportMetaBlock() + "\r\n" + tableToCsv(rows).replace(/^﻿/, "");
   if (kind === "records") return exportFilteredRecords();
+  if (kind === "pdf") return exportExecutivePdf();
 
   if (kind === "sites") {
     const rows = buildSiteTableRows(records).map((r) => ({
@@ -160,4 +161,81 @@ function tableToCsv(rows) {
   const header = columns.map(csvEscape).join(",");
   const body = rows.map((r) => columns.map((c) => csvEscape(r[c])).join(",")).join("\r\n");
   return "﻿" + header + "\r\n" + body;
+}
+
+// ---------- Executive PDF ----------
+// Dependency-free: opens a print-ready A4 summary in a new window and
+// triggers the browser's print dialog (users choose "Save as PDF"). This
+// keeps the frontend free of a PDF library while producing a clean,
+// paginated executive brief of the CURRENT filter selection.
+function exportExecutivePdf() {
+  const records = filtered();
+  const cov = computeSectorCoverage(records);
+  const profiles = computeSiteGapProfiles(records);
+  const assessed = new Set(records.map(siteKey).filter(Boolean)).size;
+  const agencies = new Set(records.filter((r) => r.coverageStatus === "Yes" && r.agency).map((r) => r.agency)).size;
+  const confirmedGaps = profiles.filter((s) => s.gapCount > 0).length;
+  const critical = profiles.filter((s) => s.isCritical).length;
+  const master = state.masterSites ? state.masterSites.total : null;
+  const f = (set) => (set.size ? Array.from(set).join(", ") : "All");
+  const insights = Array.from(document.querySelectorAll("#insight-banner li")).map((li) => li.textContent);
+  const topPriority = profiles.filter((s) => s.gapCount > 0).sort((a, b) => b.gapCount - a.gapCount).slice(0, 10);
+
+  const win = window.open("", "_blank");
+  if (!win) return; // popup blocked — the Download menu note covers this
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>CCCM Service Mapping — Executive Summary</title>
+  <style>
+    @page { size: A4; margin: 16mm; }
+    body { font-family: Inter, "Segoe UI", Arial, sans-serif; color: #26343A; font-size: 11px; margin: 0; }
+    h1 { font-size: 17px; margin: 0 0 2px; color: #104E5D; }
+    h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #17677A; margin: 16px 0 6px; border-bottom: 1px solid #D6E0E3; padding-bottom: 3px; }
+    .eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 0.05em; color: #17677A; }
+    .meta { color: #75848A; font-size: 9px; margin: 6px 0 0; }
+    .kpis { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .kpi { border: 1px solid #D6E0E3; border-radius: 6px; padding: 6px 10px; min-width: 96px; }
+    .kpi b { display: block; font-size: 15px; }
+    .kpi.red b { color: #D9534F; }
+    table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    th, td { text-align: left; padding: 3px 6px; border-bottom: 1px solid #E4EAEC; }
+    th { font-size: 9px; text-transform: uppercase; color: #75848A; }
+    ul { margin: 4px 0; padding-left: 16px; }
+    .footer { margin-top: 18px; font-size: 8.5px; color: #75848A; border-top: 1px solid #D6E0E3; padding-top: 6px; }
+  </style></head><body>
+  <div class="eyebrow">SERVICE COVERAGE TOOL · CCCM CLUSTER SOMALIA</div>
+  <h1>Service Mapping — Executive Summary</h1>
+  <div class="meta">
+    Generated: ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC ·
+    Last synchronization: ${state.generatedAt || "unknown"} · Sources: ${state.source || "unknown"}<br>
+    Filters — Period: ${f(filters.period)} · Region: ${f(filters.region)} · District: ${f(filters.district)} ·
+    Catchment: ${f(filters.catchment)} · Sector: ${f(filters.sector)} · Agency: ${f(filters.agency)}
+  </div>
+
+  <h2>Key figures</h2>
+  <div class="kpis">
+    <div class="kpi"><b>${assessed.toLocaleString()}</b>Sites assessed${master ? ` (of ${master.toLocaleString()} master-list)` : ""}</div>
+    <div class="kpi"><b>${agencies.toLocaleString()}</b>Active agencies</div>
+    <div class="kpi red"><b>${confirmedGaps.toLocaleString()}</b>Sites with confirmed gaps</div>
+    <div class="kpi red"><b>${critical.toLocaleString()}</b>Sites with critical gaps</div>
+  </div>
+
+  <h2>Automated insights</h2>
+  <ul>${insights.map((i) => `<li>${i}</li>`).join("")}</ul>
+
+  <h2>Sector coverage</h2>
+  <table><thead><tr><th>Sector</th><th>Covered</th><th>Not covered</th><th>Unknown</th><th>Assessed</th><th>Coverage</th></tr></thead>
+  <tbody>${cov.map((s) => `<tr><td>${s.sector}</td><td>${s.covered.toLocaleString()}</td><td>${s.notCovered.toLocaleString()}</td><td>${s.unknown.toLocaleString()}</td><td>${s.reportableTotal.toLocaleString()}</td><td>${s.reportableTotal ? Math.round(s.coveragePct) + "%" : "—"}</td></tr>`).join("")}</tbody></table>
+
+  <h2>Top priority sites</h2>
+  <table><thead><tr><th>Site</th><th>District</th><th>Catchment</th><th>Confirmed gaps</th><th>Critical</th></tr></thead>
+  <tbody>${topPriority.map((s) => `<tr><td>${s.siteName} (${s.siteKey})</td><td>${s.district || "—"}</td><td>${s.catchment || "—"}</td><td>${s.gapCount}</td><td>${s.isCritical ? "yes" : ""}</td></tr>`).join("")}</tbody></table>
+
+  <div class="footer">
+    Definitions: Covered = at least one confirmed active provider; Not covered = explicitly confirmed unavailable;
+    Unknown = blank/not reported (never counted as No; excluded from the coverage denominator).
+    Critical = missing 3+ priority sectors, all priority services, or both Health and WASH.
+    Figures reflect partner-reported data for the filters above and may change as reporting is updated.
+    CCCM Cluster Somalia — service-mapping-dashboard.cccmclustersomalia.org
+  </div>
+  <script>window.onload = function () { window.print(); };</` + `script></body></html>`);
+  win.document.close();
 }

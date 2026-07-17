@@ -4,7 +4,13 @@
 // server-side pagination isn't needed per the perf requirements' "keep
 // dependencies minimal" guidance.
 
-const TABLE_PAGE_SIZE = 25;
+// Pagination note: the full cleaned dataset is already client-side (the
+// charts need all of it) and the API is a stateless serverless function, so
+// "server-side" table paging would re-invoke a Kobo-backed function per page
+// and be strictly slower. The operational goal — never render every site row
+// into the DOM — is met here: only the current page (25/50/100 rows) is
+// rendered, search is debounced, and page-size is user-selectable.
+let tablePageSize = 25;
 let tableSortField = "region";
 let tableSortDir = 1;
 let tablePage = 1;
@@ -73,9 +79,9 @@ function renderSiteTable(records) {
   document.getElementById("sites-table-count").textContent = t("n_assessed_sites", { n: allRows.length.toLocaleString() });
   _drawerSiteOrder = rows.map((r) => r.siteKey); // prev/next follows table order
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / TABLE_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(rows.length / tablePageSize));
   tablePage = Math.min(tablePage, totalPages);
-  const pageRows = rows.slice((tablePage - 1) * TABLE_PAGE_SIZE, tablePage * TABLE_PAGE_SIZE);
+  const pageRows = rows.slice((tablePage - 1) * tablePageSize, tablePage * tablePageSize);
 
   const tbody = document.getElementById("sites-table-body");
   tbody.innerHTML = pageRows.map((r) => {
@@ -125,7 +131,17 @@ function renderTablePagination(totalPages) {
 }
 
 function setupTableInteractions() {
+  let searchTimer = null;
   document.getElementById("sites-table-search").addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      tablePage = 1;
+      renderSiteTable(filtered());
+    }, 200); // debounced — re-filtering ~1,900 site rows per keystroke is wasteful
+  });
+  const pageSize = document.getElementById("sites-table-pagesize");
+  if (pageSize) pageSize.addEventListener("change", () => {
+    tablePageSize = parseInt(pageSize.value, 10) || 25;
     tablePage = 1;
     renderSiteTable(filtered());
   });

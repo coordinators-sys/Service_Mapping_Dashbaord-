@@ -67,6 +67,26 @@ const TRANSLATIONS = {
     dl_records: "Filtered service records", dl_sites: "Sites and coverage",
     dl_agencies: "Agencies and activities", dl_gaps: "Priority service gaps", dl_quality: "Data-quality issues",
 
+    // Methodology (rendered in the drawer AND exported as text)
+    meth_title: "Methodology & indicator definitions",
+    meth_updated: "Last methodology update: 2026-07-17.",
+    methodology: [
+      ["Data sources", "KoboToolbox service-mapping submissions plus IOM ZiteManager service-provider records, merged into one record set (each record is tagged with its source). Data refreshes from the sources on load, cached server-side for 5 minutes, with a daily scheduled refresh."],
+      ["Reporting period", "Calendar months (YYYY-MM), derived from each submission's date. The dashboard is updated monthly."],
+      ["Site denominator", "The CCCM master site list (permanent CCCM Site IDs) is the authoritative site reference. The reporting-completeness rate uses the FULL master list as denominator — no per-round 'expected to report' scope is configured yet, so that rate understates completeness where only part of the list was asked to report."],
+      ["Covered", "At least one confirmed active provider delivers the sector at the site in the selected period."],
+      ["Not covered (confirmed gap)", "The submission explicitly confirms the service is unavailable (a definite 'No')."],
+      ["Unknown", "The question was blank, contradictory, or not assessed. Unknown is NEVER counted as 'No' — it is excluded from the coverage denominator entirely."],
+      ["Coverage percentage", "Covered assessed sites ÷ (covered + not-covered assessed sites) × 100."],
+      ["Sites with confirmed gaps", "Assessed sites with at least one sector explicitly confirmed unavailable."],
+      ["Critical gap threshold", "A site is critical when it meets ANY of: missing 3+ priority sectors; missing all priority services; missing both Health and WASH. Priority sectors: Health, WASH, General Protection, Shelter/NFI."],
+      ["Site matching hierarchy", "1) exact CCCM Site ID, 2) exact official name, 3) approved alternative name, 4) GPS proximity (150 m), 5) fuzzy name (flagged 'needs review'), 6) unmatched — flagged, never auto-created as a new site."],
+      ["Catchment assignment", "Master-list sites are located inside the 2025 catchment boundary polygons; catchment labels are district-qualified (e.g. Baidoa · CA01) because CA codes repeat across districts."],
+      ["Administrative names", "Region/district names are standardized against a reviewed alias table (e.g. 'Mogadishu Dayniile' → Daynile). Nothing is merged without review."],
+      ["Period comparison", "Two comparisons are shown: all reported sites per period, and like-for-like (only sites reported in BOTH periods, shown when at least 20 such sites exist) so trend claims are not artifacts of a changed reporting cohort."],
+      ["Known limitations", "No per-service breakdown (the form asks per sector); partner types not yet mapped; flood/river-risk layers not yet integrated; no per-round expected-reporting scope."],
+    ],
+
     // Multi-select
     ms_all: "All", ms_n_selected: "{n} selected", ms_search: "Search…",
     ms_search_noun: "Search {noun}…",
@@ -150,6 +170,7 @@ const TRANSLATIONS = {
     drawer_zoom: "Zoom to site",
 
     // Download menu extras
+    dl_pdf: "Executive summary (PDF)",
     dl_sectors: "Sector summary",
     dl_catchments: "Catchment summary",
     dl_notreported: "Sites not reported (by district)",
@@ -284,6 +305,24 @@ const TRANSLATIONS = {
     col_status: "Xaaladda xogta",
     download_menu_title: "Soo deji xogta",
     methodology_btn: "Habka shaqada",
+    meth_title: "Habka shaqada iyo qeexitaannada tilmaamayaasha",
+    meth_updated: "Cusboonaysiintii u dambaysay ee habka shaqada: 2026-07-17.",
+    methodology: [
+      ["Ilaha xogta", "Warbixinnada khariidaynta adeegyada ee KoboToolbox iyo diiwaannada adeeg-bixiyeyaasha ee IOM ZiteManager, oo la isku daray hal xog-urur (diiwaan kastaa wuxuu wataa calaamadda ishiisa). Xogta waxaa laga soo cusboonaysiiyaa ilaha marka la furo, iyadoo server-ka lagu kaydiyo 5 daqiiqo, laguna daro cusboonaysiin maalinle ah oo la qorsheeyay."],
+      ["Xilliga warbixinta", "Bilo taariikheed (SSSS-BB), oo laga soo qaatay taariikhda warbixin kasta. Dashboard-ka waxaa la cusboonaysiiyaa bil kasta."],
+      ["Tirokoobka goobaha (denominator)", "Liiska rasmiga ah ee goobaha CCCM (Aqoonsiyada joogtada ah ee CCCM) ayaa ah tixraaca rasmiga ah. Heerka dhamaystirka warbixintu wuxuu isticmaalaa liiska OO DHAN — wali lama qaabeynin cabbir 'la filayo inay warbixiyaan' oo xilli kasta ah, sidaas darteed heerkaasi wuu hoos dhigaa dhamaystirka marka qayb kaliya oo liiska ah la weydiistay inay warbixiso."],
+      ["La daboolay", "Ugu yaraan hal adeeg-bixiye firfircoon oo la xaqiijiyay ayaa qaybta ka fuliya goobta xilliga la doortay."],
+      ["Aan la daboolin (baahi la xaqiijiyay)", "Warbixintu si cad ayay u xaqiijisay in adeeggu uusan jirin ('Maya' hubaal ah)."],
+      ["Lama yaqaan", "Su'aashu waxay ahayd mid banaan, is-khilaafsan, ama aan la qiimeyn. Lama-yaqaan WELIGEED laguma tiriyo 'Maya' — gebi ahaanba waa laga saaraa tirokoobka daboolka."],
+      ["Boqolleyda daboolka", "Goobaha la daboolay ee la qiimeeyay ÷ (la daboolay + aan la daboolin) × 100."],
+      ["Goobaha leh baahi la xaqiijiyay", "Goobaha la qiimeeyay ee leh ugu yaraan hal qayb oo si cad loo xaqiijiyay inaysan jirin."],
+      ["Cabbirka baahida halista ah", "Goob waxay halis noqotaa marka ay buuxiso MID ka mid ah: ka maqan 3+ qaybood oo muhiim ah; ka maqan dhammaan adeegyada muhiimka ah; ka maqan Caafimaadka iyo WASH labadaba. Qaybaha muhiimka ah: Caafimaad, WASH, Ilaalin Guud, Hoy/NFI."],
+      ["Kala-horreynta isku-xirka goobaha", "1) Aqoonsiga CCCM oo sax ah, 2) magaca rasmiga ah oo sax ah, 3) magac kale oo la ansixiyay, 4) u-dhawaanshaha GPS (150 m), 5) magac isku-eg (calaamad 'u baahan dib-u-eegis'), 6) aan la isku xirin — waa la calaamadeeyaa, weligeedna si toos ah looma abuuro goob cusub."],
+      ["U-meelaynta aagagga daryeelka", "Goobaha liiska rasmiga ah waxaa la dhex-meeleeyaa xuduudaha aagagga 2025; magacyada aagagga waxaa lagu sifeeyaa degmada (tusaale: Baidoa · CA01) sababtoo ah lambarrada CA way ku soo noqnoqdaan degmooyin kala duwan."],
+      ["Magacyada maamulka", "Magacyada gobollada/degmooyinka waxaa lagu hagaajiyaa shax magac-beddel ah oo dib loo eegay (tusaale: 'Mogadishu Dayniile' → Daynile). Waxba laguma daro dib-u-eegis la'aan."],
+      ["Isbarbardhigga xilliyada", "Waxaa la muujiyaa laba isbarbardhig: dhammaan goobaha warbixiyay xilli kasta, iyo isku-mid (kaliya goobaha warbixiyay LABADA xilli, la muujiyo marka ay jiraan ugu yaraan 20 goobood) si sheegashooyinka isbeddelku aysan ka dhalan isbeddel kooxda warbixisa."],
+      ["Xaddidaadaha la yaqaan", "Ma jiro kala-qaybin adeeg-adeeg (foomku wuxuu weydiiyaa qayb ahaan); noocyada bixiyeyaasha wali lama khariteynin; lakabyada halista fatahaadda/webiga wali laguma darin; ma jiro cabbir warbixineed oo xilli kasta ah."],
+    ],
     dl_records: "Diiwaannada adeegga ee la shaandheeyay", dl_sites: "Goobaha iyo daboolka",
     dl_agencies: "Hay'adaha iyo hawlaha", dl_gaps: "Baahida adeegyada degdegga ah", dl_quality: "Arrimaha tayada xogta",
 
@@ -362,6 +401,7 @@ const TRANSLATIONS = {
     drawer_copied: "La koobiyay ✓",
     drawer_zoom: "U dhawee goobta",
 
+    dl_pdf: "Warbixin kooban oo fulineed (PDF)",
     dl_sectors: "Kooban qaybeed",
     dl_catchments: "Kooban aagagga daryeelka",
     dl_notreported: "Goobaha aan la soo sheegin (degmo)",

@@ -214,7 +214,7 @@ function computeSiteGapProfiles(records) {
     const key = siteKey(r);
     if (!key) return;
     if (!bySite.has(key)) {
-      bySite.set(key, { siteKey: key, siteName: siteLabel(r), region: r.region, district: r.district, statuses: {} });
+      bySite.set(key, { siteKey: key, siteName: siteLabel(r), region: r.region, district: r.district, catchment: r.catchment || null, statuses: {} });
     }
     const entry = bySite.get(key);
     if (!entry.statuses[r.sector]) entry.statuses[r.sector] = r.coverageStatus;
