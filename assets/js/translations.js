@@ -67,7 +67,25 @@ const TRANSLATIONS = {
 
     // Multi-select
     ms_all: "All", ms_n_selected: "{n} selected", ms_search: "Search…",
-    ms_select_all: "Select all", ms_clear: "Clear", ms_no_options: "No options",
+    ms_search_noun: "Search {noun}…",
+    ms_select_all: "Select all", ms_select_visible: "Select all visible", ms_clear: "Clear",
+    ms_no_options: "No options",
+    ms_count: "{n} {noun} · {selected} selected",
+    ms_no_match: "No matching {noun}",
+    noun_regions: "regions", noun_districts: "districts", noun_catchments: "catchments",
+    noun_sites: "sites", noun_periods: "periods", noun_sectors: "sectors",
+    noun_agencies: "agencies", noun_statuses: "statuses",
+
+    // Filter chips / notices / counts
+    active_filters: "Active filters:",
+    clear_all: "Clear all",
+    caption_count: "Showing {shown} of {total} sites.",
+    caption_count_ca: "Showing {shown} of {total} sites across {ca} catchment areas.",
+    caption_count_ca_one: "Showing {shown} of {total} sites in 1 catchment area.",
+    notice_removed: "Some selections were removed because they are no longer available: {items}",
+    filters_title: "Filters",
+    filters_btn: "Filters",
+    apply_filters: "Apply filters",
 
     // KPI cards
     kpi_sites_assessed: "Sites assessed",
@@ -218,7 +236,24 @@ const TRANSLATIONS = {
     dl_agencies: "Hay'adaha iyo hawlaha", dl_gaps: "Baahida adeegyada degdegga ah", dl_quality: "Arrimaha tayada xogta",
 
     ms_all: "Dhammaan", ms_n_selected: "{n} la doortay", ms_search: "Raadi…",
-    ms_select_all: "Dooro dhammaan", ms_clear: "Tirtir", ms_no_options: "Ma jiraan doorashooyin",
+    ms_search_noun: "Raadi {noun}…",
+    ms_select_all: "Dooro dhammaan", ms_select_visible: "Dooro kuwa muuqda", ms_clear: "Tirtir",
+    ms_no_options: "Ma jiraan doorashooyin",
+    ms_count: "{n} {noun} · {selected} la doortay",
+    ms_no_match: "Lama helin {noun} u dhigma",
+    noun_regions: "gobollo", noun_districts: "degmooyin", noun_catchments: "aagag",
+    noun_sites: "goobo", noun_periods: "xilliyo", noun_sectors: "qaybo",
+    noun_agencies: "hay'ado", noun_statuses: "xaalado",
+
+    active_filters: "Shaandhooyinka firfircoon:",
+    clear_all: "Tirtir dhammaan",
+    caption_count: "Waxaa la muujinayaa {shown} goobood oo ka mid ah {total}.",
+    caption_count_ca: "Waxaa la muujinayaa {shown} goobood oo ka mid ah {total}, {ca} aag daryeel.",
+    caption_count_ca_one: "Waxaa la muujinayaa {shown} goobood oo ka mid ah {total}, 1 aag daryeel.",
+    notice_removed: "Qaar ka mid ah doorashooyinka waa la saaray sababtoo ah lama heli karo: {items}",
+    filters_title: "Shaandhooyin",
+    filters_btn: "Shaandhooyin",
+    apply_filters: "Codso shaandhooyinka",
 
     kpi_sites_assessed: "Goobaha la qiimeeyay",
     kpi_active_agencies: "Hay'adaha firfircoon",

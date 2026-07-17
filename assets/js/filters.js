@@ -1,7 +1,7 @@
 // Centralized application state + filter state. Every chart/KPI/table/map
 // reads from `filtered()` — one source of truth for "what's selected".
-// Filter widgets are MultiSelect instances (multiselect.js); this module
-// owns them and keeps them in sync with the `filters` Sets.
+// MultiSelect widgets (multiselect.js) render options and report changes;
+// they never hold authoritative state of their own.
 
 const state = {
   all: [],
@@ -16,12 +16,12 @@ const state = {
 const filters = {
   region: new Set(),
   district: new Set(),
-  agency: new Set(),
   catchment: new Set(),
-  sector: new Set(),
-  service: new Set(),
   site: new Set(),
   period: new Set(),
+  sector: new Set(),
+  agency: new Set(),
+  service: new Set(),
   coverage: new Set(),
 };
 
@@ -57,81 +57,191 @@ function uniqueSorted(records, field) {
   return Array.from(new Set(records.map((r) => r[field]).filter(Boolean))).sort();
 }
 
-const SLICER_FIELD_MAP = {
-  region: "region",
-  district: "district",
-  catchment: "catchment",
-  site: null, // derived via siteKey()/siteLabel()
-  period: "reportingPeriod",
-  sector: "sector",
-  agency: "agency",
-  coverage: "coverageStatus",
-};
+// Catchment values are district-qualified ("Baidoa · CA01") because CA codes
+// repeat across districts — split them so the UI can group by district and
+// show just "CA01" under a heading.
+function splitCatchment(value) {
+  const idx = String(value).indexOf(" · ");
+  if (idx === -1) return { group: null, label: String(value) };
+  return { group: String(value).slice(0, idx), label: String(value).slice(idx + 3) };
+}
+
+const SLICER_CONFIG = [
+  { dimension: "region", labelKey: "f_region", nounKey: "noun_regions" },
+  { dimension: "district", labelKey: "f_district", nounKey: "noun_districts" },
+  { dimension: "catchment", labelKey: "f_catchment", nounKey: "noun_catchments", groupBy: true },
+  { dimension: "site", labelKey: "f_site", nounKey: "noun_sites", groupBy: true },
+  { dimension: "period", labelKey: "f_period", nounKey: "noun_periods" },
+  { dimension: "sector", labelKey: "f_sector", nounKey: "noun_sectors" },
+  { dimension: "agency", labelKey: "f_agency", nounKey: "noun_agencies" },
+  { dimension: "coverage", labelKey: "f_coverage", nounKey: "noun_statuses" },
+];
 
 function initSlicers() {
-  Object.keys(SLICER_FIELD_MAP).forEach((dimension) => {
+  SLICER_CONFIG.forEach(({ dimension, nounKey, groupBy }) => {
     const container = document.getElementById(`filter-${dimension}`);
     if (!container) return;
-    slicers[dimension] = new MultiSelect(`filter-${dimension}`, {
+    slicers[dimension] = createMultiSelect({
+      dimension,
+      container,
+      placeholder: t("ms_all"),
+      searchPlaceholder: t("ms_search_noun", { noun: t(nounKey) }),
+      countNoun: t(nounKey),
+      groupBy,
       onChange: (values) => {
         filters[dimension] = new Set(values);
         applyFilters();
       },
     });
+    slicers[dimension]._nounKey = nounKey;
   });
 }
 
+function buildOptions(dimension) {
+  const scoped = filtered(dimension); // cascading: every OTHER filter still applies
+
+  if (dimension === "site") {
+    const seen = new Map();
+    scoped.forEach((r) => {
+      const key = siteKey(r);
+      if (key && !seen.has(key)) seen.set(key, { value: key, label: siteLabel(r), group: r.district || null });
+    });
+    return Array.from(seen.values()).sort(
+      (a, b) => String(a.group).localeCompare(String(b.group)) || String(a.label).localeCompare(String(b.label))
+    );
+  }
+
+  if (dimension === "catchment") {
+    return uniqueSorted(scoped, "catchment").map((v) => ({ value: v, ...splitCatchment(v) }));
+  }
+
+  if (dimension === "coverage") {
+    const present = new Set(scoped.map((r) => r.coverageStatus).filter(Boolean));
+    return ["Yes", "No", "Unknown"]
+      .filter((v) => present.has(v))
+      .map((v) => ({ value: v, label: t(v === "Yes" ? "chart_yes" : v === "No" ? "chart_no" : "chart_unknown") }));
+  }
+
+  const field = { region: "region", district: "district", period: "reportingPeriod", sector: "sector", agency: "agency" }[dimension];
+  return uniqueSorted(scoped, field).map((v) => ({ value: v, label: v }));
+}
+
+// Refresh every dropdown's options against the current cascade, and report
+// any selections that had to be dropped because they're no longer reachable.
 function refreshSlicerOptions() {
+  const removedByDimension = {};
   Object.entries(slicers).forEach(([dimension, slicer]) => {
-    const scoped = filtered(dimension); // cascading: every OTHER filter still applies
-
-    let values;
-    if (dimension === "site") {
-      const seen = new Map();
-      scoped.forEach((r) => {
-        const key = siteKey(r);
-        if (key && !seen.has(key)) seen.set(key, siteLabel(r));
-      });
-      values = Array.from(seen.entries()).sort((a, b) => String(a[1]).localeCompare(String(b[1])));
-    } else if (dimension === "coverage") {
-      const present = new Set(scoped.map((r) => r.coverageStatus).filter(Boolean));
-      values = ["Yes", "No", "Unknown"]
-        .filter((v) => present.has(v))
-        .map((v) => [v, t(v === "Yes" ? "chart_yes" : v === "No" ? "chart_no" : "chart_unknown")]);
-    } else {
-      values = uniqueSorted(scoped, SLICER_FIELD_MAP[dimension]).map((v) => [v, v]);
+    const removed = slicer.setOptions(buildOptions(dimension));
+    if (removed.length) {
+      filters[dimension] = new Set(slicer.getSelected());
+      removedByDimension[dimension] = removed;
     }
-
-    const selectionChanged = slicer.setOptions(values);
-    if (selectionChanged) filters[dimension] = new Set(slicer.getSelected());
   });
+  return removedByDimension;
 }
 
 function syncSlicerSelections() {
-  Object.entries(slicers).forEach(([dimension, slicer]) => {
-    slicer.setSelected(Array.from(filters[dimension]));
+  Object.entries(slicers).forEach(([dimension, slicer]) => slicer.sync(Array.from(filters[dimension])));
+}
+
+// Human label for a raw filter value (chips, notifications).
+function displayValue(dimension, value) {
+  if (dimension === "catchment") {
+    const { group, label } = splitCatchment(value);
+    return filters.district.size === 1 && group ? label : String(value);
+  }
+  if (dimension === "site") {
+    const rec = state.all.find((r) => siteKey(r) === value);
+    return rec ? siteLabel(rec) : value;
+  }
+  if (dimension === "coverage") {
+    return t(value === "Yes" ? "chart_yes" : value === "No" ? "chart_no" : "chart_unknown");
+  }
+  return String(value);
+}
+
+function activeFilterCount() {
+  return Object.values(filters).reduce((sum, set) => sum + set.size, 0);
+}
+
+function isDefaultState() {
+  return activeFilterCount() === 0;
+}
+
+function renderChips() {
+  const container = document.getElementById("filter-chips");
+  if (!container) return;
+  const chips = [];
+  SLICER_CONFIG.forEach(({ dimension }) => {
+    filters[dimension].forEach((value) => {
+      chips.push(
+        `<button type="button" class="chip" data-dimension="${dimension}" data-value="${escapeHtml(value)}">
+           <span class="chip-label">${escapeHtml(displayValue(dimension, value))}</span><span class="chip-x" aria-hidden="true">×</span>
+         </button>`
+      );
+    });
   });
+
+  if (!chips.length) {
+    container.innerHTML = "";
+    container.hidden = true;
+    return;
+  }
+  container.hidden = false;
+  container.innerHTML =
+    `<span class="chips-label">${t("active_filters")}</span>${chips.join("")}` +
+    `<button type="button" class="chip chip-clear" id="chip-clear-all">${t("clear_all")}</button>`;
+
+  container.querySelectorAll(".chip[data-dimension]").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      filters[chip.dataset.dimension].delete(chip.dataset.value);
+      applyFilters();
+    });
+  });
+  const clearAll = container.querySelector("#chip-clear-all");
+  if (clearAll) clearAll.addEventListener("click", resetFilters);
 }
 
 function renderCaption() {
   const records = filtered();
   const caption = document.getElementById("filter-caption");
-  const bits = [];
-  if (filters.sector.size) bits.push(t("caption_services", { sector: Array.from(filters.sector).join(", ") }));
-  if (filters.district.size) bits.push(t("caption_in_district", { district: Array.from(filters.district).join(", ") }));
-  else if (filters.region.size) bits.push(t("caption_in_district", { district: Array.from(filters.region).join(", ") }));
-  if (filters.agency.size) bits.push(t("caption_by_agency", { agency: Array.from(filters.agency).join(", ") }));
+  if (!caption) return;
 
-  const assessedSites = new Set(records.map(siteKey).filter(Boolean)).size;
-
-  if (!bits.length && !filters.site.size && !filters.period.size && !filters.coverage.size) {
+  if (isDefaultState()) {
     caption.textContent = t("caption_default");
-    return;
+  } else {
+    const shownSites = new Set(records.map(siteKey).filter(Boolean)).size;
+    const totalSites = new Set(state.all.map(siteKey).filter(Boolean)).size;
+    const catchments = new Set(records.map((r) => r.catchment).filter(Boolean)).size;
+    const counts = { shown: shownSites.toLocaleString(), total: totalSites.toLocaleString(), ca: catchments };
+    const key = !catchments ? "caption_count" : catchments === 1 ? "caption_count_ca_one" : "caption_count_ca";
+    caption.textContent = t(key, counts);
   }
-  caption.textContent = t("caption_filtered", {
-    what: bits.join(" ") || t("ms_n_selected", { n: assessedSites }),
-    n: assessedSites.toLocaleString(),
-  });
+
+  const resetBtn = document.getElementById("btn-reset-filters");
+  if (resetBtn) resetBtn.disabled = isDefaultState();
+
+  const mobileCount = document.getElementById("mobile-filter-count");
+  if (mobileCount) {
+    const n = activeFilterCount();
+    mobileCount.textContent = n ? ` (${n})` : "";
+  }
+}
+
+// Transient inline notice when a cascade invalidates downstream selections —
+// silently dropping them would leave users wondering where their filter went.
+let _noticeTimer = null;
+function notifyRemoved(removedByDimension) {
+  const el = document.getElementById("filter-notice");
+  if (!el) return;
+  const parts = Object.entries(removedByDimension).map(([dimension, values]) =>
+    `${values.map((v) => displayValue(dimension, v)).join(", ")}`
+  );
+  if (!parts.length) return;
+  el.textContent = t("notice_removed", { items: parts.join("; ") });
+  el.hidden = false;
+  clearTimeout(_noticeTimer);
+  _noticeTimer = setTimeout(() => { el.hidden = true; }, 6000);
 }
 
 // Cross-filter toggle from chart/map/table clicks. Ctrl/Cmd-click adds to
@@ -141,12 +251,8 @@ function toggleFilterValue(dimension, value, additive) {
   if (!value) return;
   const set = filters[dimension];
   if (!additive) {
-    if (set.size === 1 && set.has(value)) {
-      set.clear();
-    } else {
-      set.clear();
-      set.add(value);
-    }
+    if (set.size === 1 && set.has(value)) set.clear();
+    else { set.clear(); set.add(value); }
   } else if (set.has(value)) {
     set.delete(value);
   } else {
@@ -157,12 +263,21 @@ function toggleFilterValue(dimension, value, additive) {
 
 function resetFilters() {
   Object.keys(filters).forEach((k) => filters[k].clear());
+  MultiSelect.closeAll();
+  Object.values(slicers).forEach((s) => {
+    s.searchInput.value = "";
+    s.search = "";
+    s.searchClear.hidden = true;
+  });
+  if (typeof resetMapView === "function") resetMapView();
   applyFilters();
 }
 
 function applyFilters() {
-  refreshSlicerOptions();
+  const removed = refreshSlicerOptions();
   syncSlicerSelections();
+  if (Object.keys(removed).length) notifyRemoved(removed);
+  renderChips();
   renderCaption();
   renderAll();
 }

@@ -13,6 +13,15 @@
   --text: #26343A;
   --text-muted: #6B777C;
   --radius: 12px;
+
+  /* Filter system tokens */
+  --label: #65747A;
+  --teal-selection: #E8F4F6;
+  --control-border: #D6E0E3;
+  --hover-bg: #F1F7F8;
+  --muted: #75848A;
+  --control-h: 46px;
+  --control-radius: 10px;
 }
 
 [data-theme="dark"] {
@@ -21,13 +30,22 @@
   --border: #2C3438;
   --text: #E8ECED;
   --text-muted: #9AA5AA;
+  --teal-selection: #123640;
+  --control-border: #2C3438;
+  --hover-bg: #1B2529;
+  --label: #9AA5AA;
+  --muted: #9AA5AA;
 }
 
 * { box-sizing: border-box; }
 
+/* `clip` (not `hidden`) kills horizontal overflow WITHOUT creating a scroll
+   container — `overflow-x: hidden` here would break the sticky filter bar. */
+html, body { overflow-x: clip; }
+
 body {
   margin: 0;
-  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
   scroll-behavior: smooth;
@@ -86,27 +104,83 @@ body {
   padding: 14px 0;
   box-shadow: 0 2px 6px rgba(0,0,0,0.04);
 }
+
+/* Responsive filter grid: 4 cols on large desktop, 3 laptop, 2 tablet, 1 mobile */
 .filter-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: 12px 14px;
 }
-@media (min-width: 992px) {
-  .filter-grid { grid-template-columns: repeat(8, 1fr); }
+@media (min-width: 768px)  { .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1440px) { .filter-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+.filter-field {
+  position: relative;      /* anchor for the absolutely-positioned panel */
+  min-width: 0;            /* lets grid children shrink instead of overflowing */
 }
-.filter-field label { display: block; font-size: 0.72rem; font-weight: 700; margin-bottom: 4px; color: var(--text-muted); }
-.filter-field select, .filter-field input {
-  width: 100%;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  padding: 6px 8px;
-  font-size: 0.82rem;
-  background: var(--card-bg);
-  color: var(--text);
+.filter-field label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  margin-bottom: 5px;
+  color: var(--label);
 }
-.filter-field select[multiple] { height: 34px; }
-.filter-field-actions { display: flex; align-items: flex-end; }
-.filter-caption { font-size: 0.8rem; color: var(--text-muted); margin-top: 10px; }
+
+.filter-panel-head { display: none; }
+.filters-toggle { display: none; }
+.filter-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.filters-apply { display: none; } /* mobile drawer only */
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.filter-notice {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: var(--control-radius);
+  background: #FDF3E7;
+  color: #8A5A2A;
+  font-size: 0.8rem;
+}
+[data-theme="dark"] .filter-notice { background: #3A2A1E; color: var(--warning); }
+
+/* Active filter chips */
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.chips-label { font-size: 0.75rem; color: var(--label); font-weight: 600; margin-right: 2px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  border: 1px solid var(--control-border);
+  background: var(--teal-selection);
+  color: var(--dark-teal);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+[data-theme="dark"] .chip { color: var(--secondary-teal); }
+.chip:hover { border-color: var(--primary); }
+.chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-x { font-size: 0.95rem; line-height: 1; opacity: 0.7; }
+.chip-clear { background: transparent; color: var(--muted); }
+
+.filter-caption { font-size: 0.8rem; color: var(--muted); margin-top: 10px; }
+.filter-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 890; }
 
 /* Sections & cards */
 .section { padding-top: 28px; }
@@ -327,76 +401,173 @@ body {
   .sector-chip { padding: 6px 10px; }
 }
 
-/* Multi-select filter */
-.ms-wrap { position: relative; }
-.ms-btn {
+/* ===== Compact searchable multi-select ===== */
+.ms { position: relative; }
+
+.ms-trigger {
   width: 100%;
+  height: var(--control-h);
+  box-sizing: border-box;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 6px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  padding: 7px 10px;
-  font-size: 0.82rem;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
   background: var(--card-bg);
   color: var(--text);
-  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
   text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
-.ms-btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ms-btn-active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary) inset; }
-.ms-caret { color: var(--text-muted); font-size: 0.7rem; }
+.ms-trigger:hover { border-color: var(--secondary-teal); }
+.ms-trigger:focus-visible,
+.ms-trigger[aria-expanded="true"] {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(23, 103, 122, 0.15);
+}
+.ms-trigger-active { border-color: var(--primary); background: var(--teal-selection); }
+.ms-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.ms-value-empty { color: var(--muted); font-weight: 400; }
+
+.ms-trigger-icons { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.ms-clear-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  font-size: 1rem; line-height: 1; color: var(--muted); cursor: pointer;
+}
+.ms-clear-btn:hover { background: var(--border); color: var(--critical); }
+.ms-chevron { width: 12px; height: 12px; color: var(--muted); transition: transform 0.15s ease; }
+.ms-trigger[aria-expanded="true"] .ms-chevron { transform: rotate(180deg); }
+
+/* Panel: matches control width, never wider than the viewport, never
+   horizontally scrollable — long labels truncate instead of stretching it. */
 .ms-panel {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
-  z-index: 1200;
-  min-width: 100%;
-  width: max-content;
-  max-width: 280px;
+  right: 0;
+  width: 100%;
+  max-width: min(420px, calc(100vw - 24px));
+  box-sizing: border-box;
+  overflow: hidden;
   background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.14);
-  padding: 8px;
+  border: 1px solid var(--control-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(20, 55, 65, 0.16);
+  z-index: 1000;
+  /* Hard 320px cap; the options list flexes to fill whatever the sticky
+     head leaves, so head + list never exceed the panel. */
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+}
+.ms-panel-up { top: auto; bottom: calc(100% + 6px); }
+
+.ms-panel-head {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--control-border);
+  padding: 8px 8px 6px;
+}
+.ms-search-wrap { position: relative; display: flex; align-items: center; }
+.ms-search-icon {
+  position: absolute; left: 8px; width: 14px; height: 14px;
+  color: var(--muted); pointer-events: none;
 }
 .ms-search {
   width: 100%;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  padding: 6px 8px;
-  font-size: 0.8rem;
+  box-sizing: border-box;
+  height: 34px;
+  padding: 0 26px 0 28px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
   background: var(--bg);
   color: var(--text);
-  margin-bottom: 6px;
+  font-family: inherit;
+  font-size: 0.82rem;
 }
-.ms-actions { display: flex; gap: 6px; margin-bottom: 6px; }
+.ms-search:focus-visible { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(23,103,122,0.14); }
+.ms-search-clear {
+  position: absolute; right: 6px;
+  border: none; background: transparent; color: var(--muted);
+  font-size: 1rem; line-height: 1; cursor: pointer; padding: 2px 4px;
+}
+
+.ms-actions { display: flex; gap: 6px; margin-top: 6px; }
 .ms-actions button {
   flex: 1;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   background: var(--bg);
   color: var(--primary);
-  border-radius: 6px;
-  padding: 4px 6px;
+  border-radius: 7px;
+  padding: 5px 6px;
+  font-family: inherit;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.ms-actions button:hover { background: var(--border); }
-.ms-list { max-height: 240px; overflow-y: auto; }
+.ms-actions button:hover:not(:disabled) { background: var(--hover-bg); border-color: var(--secondary-teal); }
+.ms-actions button:disabled { opacity: 0.45; cursor: not-allowed; }
+.ms-count { margin-top: 6px; font-size: 0.7rem; color: var(--muted); }
+
+.ms-options {
+  flex: 1 1 auto;
+  min-height: 0;      /* required for a flex child to actually scroll */
+  max-height: 260px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px;
+}
+
+.ms-group-head {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--card-bg);
+  padding: 6px 8px 4px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .ms-option {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 6px;
-  border-radius: 6px;
-  font-size: 0.82rem;
+  gap: 10px;
+  min-height: 40px;
+  max-height: 42px;
+  padding: 8px 10px;
+  border-radius: 8px;
   cursor: pointer;
+  box-sizing: border-box;
+  font-size: 0.83rem;
 }
-.ms-option:hover { background: rgba(23,103,122,0.08); }
-.ms-option input { accent-color: var(--primary); }
-.ms-empty { padding: 8px; font-size: 0.8rem; color: var(--text-muted); text-align: center; }
+.ms-option:hover { background: var(--hover-bg); }
+.ms-option.ms-selected { background: var(--teal-selection); font-weight: 600; }
+.ms-option.ms-active { outline: 2px solid var(--primary); outline-offset: -2px; }
+.ms-option-label { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+.ms-check {
+  flex-shrink: 0;
+  width: 17px; height: 17px;
+  border: 1.5px solid var(--control-border);
+  border-radius: 4px;
+  background: var(--card-bg);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #fff; line-height: 1;
+}
+.ms-option.ms-selected .ms-check { background: var(--primary); border-color: var(--primary); }
+
+.ms-empty { padding: 16px 8px; font-size: 0.8rem; color: var(--muted); text-align: center; }
 
 /* Banners */
 .banner { border-radius: var(--radius); padding: 12px 16px; margin: 16px 0; font-size: 0.88rem; }
@@ -407,8 +578,63 @@ body {
 
 /* Responsive */
 @media (max-width: 767px) {
-  .filter-grid { grid-template-columns: repeat(2, 1fr); }
   .header-actions { width: 100%; justify-content: flex-end; }
   .chart-wrap { height: 280px; }
   .map-container { height: 380px; }
+
+  /* Filters live in a drawer so the sticky bar doesn't eat the screen */
+  .filters-toggle { display: inline-flex; align-items: center; width: 100%; justify-content: center; min-height: 44px; }
+  .filter-panel {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: min(92vw, 400px);
+    z-index: 1100;
+    background: var(--card-bg);
+    padding: 16px;
+    overflow-y: auto;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.2);
+    transform: translateX(100%);
+    /* visibility (not just transform) so the closed drawer is inert for
+       screen readers/tab order and contributes no layout overflow.
+       Delay hiding until the slide-out ends, but show instantly on open —
+       transitioning visibility itself would leave it invisible mid-slide. */
+    visibility: hidden;
+    transition: transform 0.2s ease, visibility 0s linear 0.2s;
+    display: flex;
+    flex-direction: column;
+  }
+  .filter-panel.open {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 0.2s ease, visibility 0s linear 0s;
+  }
+  .filter-panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .filter-panel-head h2 { margin: 0; font-size: 1rem; }
+  .filter-panel-head .drawer-close { position: static; font-size: 1.5rem; }
+
+  .filter-grid { grid-template-columns: 1fr; }
+
+  /* Apply/Reset pinned to the bottom of the drawer */
+  .filter-panel-actions {
+    position: sticky;
+    bottom: 0;
+    margin-top: auto;
+    padding: 12px 0 4px;
+    background: var(--card-bg);
+    border-top: 1px solid var(--control-border);
+  }
+  .filter-panel-actions .btn { flex: 1; min-height: 44px; }
+  .filters-apply { display: block; }
+
+  /* Touch targets + roomier dropdown on small screens */
+  .ms-option { min-height: 44px; max-height: none; }
+  .ms-panel { max-width: calc(100vw - 32px); }
+  .ms-clear-btn { width: 28px; height: 28px; }
+
+  body.filters-open { overflow: hidden; } /* no background scroll behind drawer */
 }

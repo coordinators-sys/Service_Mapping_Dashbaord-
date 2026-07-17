@@ -6,7 +6,10 @@
   <title>Service Mapping Dashboard — CCCM Cluster Somalia</title>
   <link rel="icon" href="assets/images/cccm-logo.png" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="assets/css/dashboard.css?v=3" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="assets/css/dashboard.css?v=4" />
 </head>
 <body>
   <header class="app-header">
@@ -33,48 +36,66 @@
 
   <div class="filter-bar" id="filter-bar">
     <div class="container">
-      <div class="filter-grid">
-        <div class="filter-field">
-          <label data-i18n="f_region">Region</label>
-          <div id="filter-region"></div>
+      <!-- Mobile: filters collapse into a drawer, keeping the sticky bar short -->
+      <button type="button" class="btn btn-primary filters-toggle" id="btn-open-filters" aria-controls="filter-panel" aria-expanded="false">
+        <span data-i18n="filters_btn">Filters</span><span id="mobile-filter-count"></span>
+      </button>
+
+      <div class="filter-panel" id="filter-panel">
+        <div class="filter-panel-head">
+          <h2 data-i18n="filters_title">Filters</h2>
+          <button type="button" class="drawer-close" id="btn-close-filters" aria-label="Close">×</button>
         </div>
-        <div class="filter-field">
-          <label data-i18n="f_district">District</label>
-          <div id="filter-district"></div>
+
+        <div class="filter-grid">
+          <div class="filter-field">
+            <label id="lbl-region" data-i18n="f_region">Region</label>
+            <div id="filter-region"></div>
+          </div>
+          <div class="filter-field">
+            <label id="lbl-district" data-i18n="f_district">District</label>
+            <div id="filter-district"></div>
+          </div>
+          <div class="filter-field">
+            <label id="lbl-catchment" data-i18n="f_catchment">Catchment Area</label>
+            <div id="filter-catchment"></div>
+          </div>
+          <div class="filter-field">
+            <label id="lbl-site" data-i18n="f_site">Site Name</label>
+            <div id="filter-site"></div>
+          </div>
+          <div class="filter-field">
+            <label id="lbl-period" data-i18n="f_period">Reporting Period</label>
+            <div id="filter-period"></div>
+          </div>
+          <div class="filter-field">
+            <label id="lbl-sector" data-i18n="f_sector">Sector</label>
+            <div id="filter-sector"></div>
+          </div>
+          <div class="filter-field">
+            <label id="lbl-agency" data-i18n="f_agency">Agency</label>
+            <div id="filter-agency"></div>
+          </div>
+          <div class="filter-field">
+            <label id="lbl-coverage" data-i18n="f_coverage">Coverage status</label>
+            <div id="filter-coverage"></div>
+          </div>
         </div>
-        <div class="filter-field">
-          <label data-i18n="f_catchment">Catchment Area</label>
-          <div id="filter-catchment"></div>
-        </div>
-        <div class="filter-field">
-          <label data-i18n="f_site">Site Name</label>
-          <div id="filter-site"></div>
-        </div>
-        <div class="filter-field">
-          <label data-i18n="f_period">Reporting Period</label>
-          <div id="filter-period"></div>
-        </div>
-        <div class="filter-field">
-          <label data-i18n="f_sector">Sector</label>
-          <div id="filter-sector"></div>
-        </div>
-        <div class="filter-field">
-          <label data-i18n="f_agency">Agency</label>
-          <div id="filter-agency"></div>
-        </div>
-        <div class="filter-field">
-          <label data-i18n="f_coverage">Coverage status</label>
-          <div id="filter-coverage"></div>
-        </div>
-        <div class="filter-field filter-field-actions">
-          <button class="btn btn-primary btn-block" id="btn-reset-filters" data-i18n="reset">Reset filters</button>
+
+        <div class="filter-panel-actions">
+          <button class="btn btn-light" id="btn-reset-filters" data-i18n="reset">Reset filters</button>
+          <button class="btn btn-primary filters-apply" id="btn-apply-filters" data-i18n="apply_filters">Apply filters</button>
         </div>
       </div>
+
+      <div class="filter-notice" id="filter-notice" role="status" hidden></div>
+      <div class="filter-chips" id="filter-chips" hidden></div>
       <div class="filter-caption" id="filter-caption" data-i18n="caption_default">
         Showing all service-mapping reports. Click any chart, KPI, map area or use the filters above to drill down.
       </div>
     </div>
   </div>
+  <div class="filter-overlay" id="filter-overlay" hidden></div>
 
   <main class="container">
     <div id="api-error-banner" class="banner banner-warning hidden"></div>
@@ -254,13 +275,13 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script src="assets/js/translations.js?v=3"></script>
-  <script src="assets/js/multiselect.js?v=3"></script>
-  <script src="assets/js/filters.js?v=3"></script>
-  <script src="assets/js/charts.js?v=3"></script>
-  <script src="assets/js/maps.js?v=3"></script>
-  <script src="assets/js/tables.js?v=3"></script>
-  <script src="assets/js/export.js?v=3"></script>
-  <script src="assets/js/app.js?v=3"></script>
+  <script src="assets/js/translations.js?v=4"></script>
+  <script src="assets/js/multiselect.js?v=4"></script>
+  <script src="assets/js/filters.js?v=4"></script>
+  <script src="assets/js/charts.js?v=4"></script>
+  <script src="assets/js/maps.js?v=4"></script>
+  <script src="assets/js/tables.js?v=4"></script>
+  <script src="assets/js/export.js?v=4"></script>
+  <script src="assets/js/app.js?v=4"></script>
 </body>
 </html>

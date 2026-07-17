@@ -124,10 +124,42 @@ function applyTheme(theme) {
   }
 }
 
+// Mobile filter drawer. Selections apply live (same as desktop), so
+// "Apply filters" just closes the drawer — the dashboard is already updated
+// behind it; the button exists because users expect a confirm affordance.
+function setupFilterDrawer() {
+  const panel = document.getElementById("filter-panel");
+  const overlay = document.getElementById("filter-overlay");
+  const openBtn = document.getElementById("btn-open-filters");
+
+  const open = () => {
+    panel.classList.add("open");
+    overlay.hidden = false;
+    document.body.classList.add("filters-open");
+    openBtn.setAttribute("aria-expanded", "true");
+  };
+  const close = () => {
+    panel.classList.remove("open");
+    overlay.hidden = true;
+    document.body.classList.remove("filters-open");
+    openBtn.setAttribute("aria-expanded", "false");
+    MultiSelect.closeAll();
+  };
+
+  openBtn.addEventListener("click", open);
+  document.getElementById("btn-close-filters").addEventListener("click", close);
+  document.getElementById("btn-apply-filters").addEventListener("click", close);
+  overlay.addEventListener("click", close);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && panel.classList.contains("open")) close();
+  });
+}
+
 function setupEventListeners() {
   // Filter widgets are MultiSelect instances (created by initSlicers) whose
   // onChange callbacks already update `filters` and call applyFilters().
   document.getElementById("btn-reset-filters").addEventListener("click", resetFilters);
+  setupFilterDrawer();
   document.getElementById("sort-sector-bar").addEventListener("change", () => renderCoverage(filtered()));
   document.getElementById("heatmap-row-level") && document.getElementById("heatmap-row-level").addEventListener("change", () => renderAgencies(filtered()));
   document.getElementById("map-mode").addEventListener("change", () => renderGeography(filtered()));
