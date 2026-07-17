@@ -59,8 +59,16 @@ function safeNumber(value) {
     if (typeof value.y === "number") return value.y;
     if (value.parsed && typeof value.parsed === "object" && typeof value.parsed.y === "number") return value.parsed.y;
   }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+  // Number(x) itself THROWS on objects that refuse primitive conversion
+  // (e.g. Chart.js option-resolver proxies) — a formatter must never throw
+  // inside the draw loop, or the shared animator dies and every chart after
+  // the throwing one stays blank.
+  try {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  } catch (e) {
+    return 0;
+  }
 }
 
 function formatNumber(value) {
@@ -84,7 +92,14 @@ function _chartTextColor() {
 const barValueLabels = {
   id: "barValueLabels",
   afterDatasetsDraw(chart) {
-    const opts = chart.options.plugins && chart.options.plugins.barValues;
+    // CRITICAL: read the RAW config, not chart.options. chart.options is a
+    // Chart.js resolver Proxy that auto-invokes function-valued options as
+    // "scriptable options" — reading opts.format through it CALLS format with
+    // a resolution-context object instead of returning the function, which
+    // crashed the whole draw loop ("Cannot convert object to primitive value")
+    // and left every chart after the first one blank.
+    const rawPlugins = chart.config && chart.config.options && chart.config.options.plugins;
+    const opts = rawPlugins && rawPlugins.barValues;
     if (!opts) return;
     const horizontal = chart.options.indexAxis === "y";
     const center = opts.mode === "center";

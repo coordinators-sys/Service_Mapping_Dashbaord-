@@ -516,6 +516,9 @@ body {
   display: flex;
   flex-direction: column;
 }
+/* An author `display:flex` overrides the UA's `[hidden]{display:none}` —
+   without this rule every "closed" panel rendered permanently open. */
+.ms-panel[hidden] { display: none !important; }
 .ms-panel-up { top: auto; bottom: calc(100% + 6px); }
 
 .ms-panel-head {
