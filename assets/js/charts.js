@@ -547,10 +547,13 @@ function renderServiceAvailabilityChart(records) {
     type: "bar",
     data: {
       labels: data.map((d) => d.sector),
+      // Assessed sites only (Yes/No). Unknown/not-reported is deliberately NOT
+      // a bar segment — it isn't an availability finding, and the grey blocks
+      // read as if something was measured. Unknown counts remain visible in
+      // the coverage-by-sector chart and the methodology.
       datasets: [
         { label: t("chart_yes"), data: data.map((d) => d.covered), backgroundColor: COLORS.success },
         { label: t("chart_no"), data: data.map((d) => d.notCovered), backgroundColor: COLORS.orange },
-        { label: t("chart_unknown"), data: data.map((d) => d.unknown), backgroundColor: COLORS.unknown },
       ],
     },
     options: {
