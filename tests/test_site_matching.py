@@ -73,6 +73,28 @@ def test_gps_tier_still_matches_a_different_named_site_within_threshold():
     assert r.site.cccm_site_id == TAWAKAL_A.cccm_site_id
 
 
+def test_temporary_master_id_matches_permanent_collected_code():
+    # Master carries the site as temporary (…-T####); the field tool collects
+    # it without the T. Same site -> confident code match, not Unmatched.
+    temp = site("CCCM-SO2501-T0071", "Guudale", "Xudur")
+    idx = MasterSiteIndex([temp, UNIQUE])
+    r = idx.match("CCCM-SO2501-0071", None, None, None)
+    assert r.match_status == "matched_by_site_code"
+    assert r.site.cccm_site_id == "CCCM-SO2501-T0071"
+    # and the exact temporary spelling still matches too
+    assert idx.match("CCCM-SO2501-T0071", None, None, None).match_status == "matched_by_site_code"
+
+
+def test_temp_fallback_never_merges_two_distinct_sites():
+    # If a permanent AND a temp id would collapse to the same key, the fallback
+    # key is dropped -> no wrong match (the permanent still matches exactly).
+    perm = site("CCCM-SO2501-0071", "Perm Site", "Xudur")
+    temp = site("CCCM-SO2501-T0071", "Temp Site", "Xudur")
+    idx = MasterSiteIndex([perm, temp])
+    assert "CCCM-SO2501-0071" not in idx.by_id_normalized  # clashing key excluded
+    assert idx.match("CCCM-SO2501-0071", None, None, None).site.cccm_site_id == "CCCM-SO2501-0071"
+
+
 def test_unmatched_when_nothing_lines_up():
     r = INDEX.match("NO-SUCH-ID", "Zzz Nonexistent", None, None)
     assert r.match_status == "unmatched"

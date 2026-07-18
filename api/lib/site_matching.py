@@ -24,6 +24,7 @@ from __future__ import annotations
 import csv
 import difflib
 import math
+import re
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -57,6 +58,20 @@ def _normalize_name(name: str) -> str:
     return " ".join(str(name).strip().lower().split())
 
 
+def _strip_temp_marker(site_id: str) -> str:
+    """Fold a CCCM Site ID to a temporary-marker-insensitive key.
+
+    ~40% of master sites carry a TEMPORARY id ("pending Site ID Generator
+    registration"), written CCCM-SO2501-T0071. The Site ID Generator the field
+    teams collect with issues that SAME site's id WITHOUT the T (CCCM-SO2501-
+    0071), so the two never string-equal and the record lands as Unmatched
+    despite being a confident code match. Dropping the leading T on the trailing
+    sequence makes the two forms converge on one key. Verified collision-free
+    against the current master list (no permanent id equals any temp id's
+    stripped form), so this can never merge two different sites."""
+    return re.sub(r"-T(\d+)$", r"-\1", str(site_id).strip().upper())
+
+
 def _canonical_district(name: str | None) -> str:
     """Fold a submission's district name to the master list's spelling (the
     same alias table load_master_sites applies), so district disambiguation
@@ -80,6 +95,16 @@ class MasterSiteIndex:
     def __init__(self, sites: list[MasterSite]):
         self.sites = sites
         self.by_id = {s.cccm_site_id.strip().upper(): s for s in sites if s.cccm_site_id}
+        # Temporary-marker-insensitive id index (CCCM-SO2501-T0071 also reachable
+        # as CCCM-SO2501-0071 — the form field teams collect with). Only keys
+        # that resolve to exactly one master site are kept, so an unlucky future
+        # master list that DID contain a permanent/temp clash can never produce
+        # a wrong match here — such a key is simply dropped from the fallback.
+        _norm_groups: dict[str, list[MasterSite]] = {}
+        for s in sites:
+            if s.cccm_site_id:
+                _norm_groups.setdefault(_strip_temp_marker(s.cccm_site_id), []).append(s)
+        self.by_id_normalized = {k: v[0] for k, v in _norm_groups.items() if len(v) == 1}
         # Name buckets hold EVERY site sharing a normalized name (not first-wins)
         # so an ambiguous name can be disambiguated by geography instead of
         # silently collapsing to whichever row was read first.
@@ -154,7 +179,12 @@ class MasterSiteIndex:
         district: str | None,
     ) -> MatchResult:
         if site_id_raw:
-            site = self.by_id.get(str(site_id_raw).strip().upper())
+            raw = str(site_id_raw).strip().upper()
+            site = self.by_id.get(raw)
+            if site:
+                return MatchResult(site, "matched_by_site_code", None)
+            # Same site, temporary vs permanent id spelling (…-T0071 vs …-0071).
+            site = self.by_id_normalized.get(_strip_temp_marker(raw))
             if site:
                 return MatchResult(site, "matched_by_site_code", None)
 
