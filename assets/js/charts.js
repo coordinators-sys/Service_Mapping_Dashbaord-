@@ -163,6 +163,17 @@ const _sectorIconImg = {};
 // SECTOR-indexed horizontal bar charts. Opt in with
 // options.plugins.sectorBarIcons = true. Charts whose axis is periods or
 // districts don't get this (a sector icon there would be meaningless).
+function _roundRectPath(ctx, x, y, w, h, r) {
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); return; }
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
 const sectorBarIcons = {
   id: "sectorBarIcons",
   afterDatasetsDraw(chart) {
@@ -172,12 +183,23 @@ const sectorBarIcons = {
     const meta = chart.getDatasetMeta(0);
     const { ctx } = chart;
     const size = 16;
+    const pad = 2.5;
     meta.data.forEach((el, i) => {
       const img = _sectorIconImg[labels[i]];
       if (!img || !img.complete || !img.naturalWidth) return;
       const props = el.getProps(["base", "y"], true);
+      const x = props.base + 4;
+      const y = props.y - size / 2;
       ctx.save();
-      ctx.drawImage(img, props.base + 3, props.y - size / 2, size, size);
+      // White rounded chip so the dark line-art icon stays legible on any
+      // bar colour (teal/green/orange) — teal-on-teal was near-invisible.
+      _roundRectPath(ctx, x - pad, y - pad, size + pad * 2, size + pad * 2, 4);
+      ctx.fillStyle = "rgba(255,255,255,0.95)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.10)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.drawImage(img, x, y, size, size);
       ctx.restore();
     });
   },
