@@ -29,13 +29,46 @@ function initMap() {
   return map;
 }
 
+// Filter-aware boundary styling: the selected district/catchment is drawn
+// bold and filled, everything else fades back — so filtering visibly answers
+// "where is my selection" instead of showing every boundary identically.
+function _districtStyle(name) {
+  if (!filters.district.size) return { color: "#17677A", weight: 1, opacity: 1, fillOpacity: 0.03 };
+  return filters.district.has(name)
+    ? { color: "#17677A", weight: 3, opacity: 1, fillOpacity: 0.08 }
+    : { color: "#17677A", weight: 0.7, opacity: 0.3, fillOpacity: 0.01 };
+}
+
+function _catchmentStyle(name, district) {
+  if (filters.catchment.size) {
+    return filters.catchment.has(name)
+      ? { color: "#EC6B4D", weight: 3.5, opacity: 1, dashArray: null, fillOpacity: 0.12 }
+      : { color: "#EC6B4D", weight: 1, opacity: 0.25, dashArray: "4 3", fillOpacity: 0.01 };
+  }
+  if (filters.district.size) {
+    // District selected: keep ITS catchments prominent, fade the rest.
+    return filters.district.has(district)
+      ? { color: "#EC6B4D", weight: 2, opacity: 1, dashArray: "4 3", fillOpacity: 0.06 }
+      : { color: "#EC6B4D", weight: 1, opacity: 0.25, dashArray: "4 3", fillOpacity: 0.01 };
+  }
+  return { color: "#EC6B4D", weight: 1.5, opacity: 1, dashArray: "4 3", fillOpacity: 0.04 };
+}
+
+function restyleBoundaries() {
+  (state.maps.districtLayers || []).forEach(({ name, layer }) => layer.setStyle(_districtStyle(name)));
+  (state.maps.catchmentLayers || []).forEach(({ name, district, layer }) => layer.setStyle(_catchmentStyle(name, district)));
+}
+
 function loadBoundaryLayer(map, geojson, options) {
   if (!geojson) return null;
+  state.maps.districtLayers = [];
   return L.geoJSON(geojson, {
-    style: { color: "#17677A", weight: 1, fillOpacity: 0.03 },
+    style: (feature) => _districtStyle(feature.properties.name),
     onEachFeature: (feature, layer) => {
-      layer.on("mouseover", () => layer.setStyle({ weight: 3, fillOpacity: 0.12, color: "#EC6B4D" }));
-      layer.on("mouseout", () => layer.setStyle({ color: "#17677A", weight: 1, fillOpacity: 0.03 }));
+      state.maps.districtLayers.push({ name: feature.properties.name, layer });
+      layer.on("mouseover", () => layer.setStyle({ weight: 3, fillOpacity: 0.12, color: "#EC6B4D", opacity: 1 }));
+      // Restore the FILTER-computed style, not a hardcoded default.
+      layer.on("mouseout", () => layer.setStyle(_districtStyle(feature.properties.name)));
       if (options && options.onClick) layer.on("click", () => options.onClick(feature));
     },
   });
@@ -114,12 +147,14 @@ function renderGeography(records) {
     // Catchment polygons (2025 CA shapefiles) — dashed orange outline to
     // stand apart from district boundaries; click filters by catchment.
     if (state.geo.catchments) {
+      state.maps.catchmentLayers = [];
       const catchments = L.geoJSON(state.geo.catchments, {
-        style: { color: "#EC6B4D", weight: 1.5, dashArray: "4 3", fillOpacity: 0.04 },
+        style: (feature) => _catchmentStyle(feature.properties.name, feature.properties.district),
         onEachFeature: (feature, layer) => {
+          state.maps.catchmentLayers.push({ name: feature.properties.name, district: feature.properties.district, layer });
           layer.bindTooltip(`${escapeHtml(feature.properties.name)} (${escapeHtml(feature.properties.district || "")})`);
-          layer.on("mouseover", () => layer.setStyle({ weight: 3, fillOpacity: 0.15 }));
-          layer.on("mouseout", () => layer.setStyle({ weight: 1.5, fillOpacity: 0.04 }));
+          layer.on("mouseover", () => layer.setStyle({ weight: 3, fillOpacity: 0.15, opacity: 1 }));
+          layer.on("mouseout", () => layer.setStyle(_catchmentStyle(feature.properties.name, feature.properties.district)));
           layer.on("click", () => toggleFilterValue("catchment", feature.properties.name, false));
         },
       });
@@ -127,6 +162,10 @@ function renderGeography(records) {
     }
     state.maps.boundariesLoaded = true;
   }
+
+  // Re-apply filter-aware boundary emphasis on every render, so selecting or
+  // clearing a district/catchment immediately re-highlights the map.
+  restyleBoundaries();
 
   const mode = document.getElementById("map-mode").value;
   const points = sitePointsFromRecords(records);
