@@ -80,7 +80,10 @@ def _build_clean_records(raw_submissions: list[dict]) -> list[dict]:
 
     for raw in raw_submissions:
         parsed = parse_submission(raw)
-        match = index.match(parsed.site_id_raw, parsed.site_name_raw, parsed.latitude, parsed.longitude)
+        match = index.match(
+            parsed.site_id_raw, parsed.site_name_raw, parsed.latitude, parsed.longitude,
+            district=parsed.district,
+        )
 
         for row in parsed.rows:
             record = {

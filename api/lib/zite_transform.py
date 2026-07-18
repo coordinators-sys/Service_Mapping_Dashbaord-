@@ -69,7 +69,18 @@ def transform_zite_records(raw_records: list[dict]) -> list[dict]:
 
     for raw in raw_records:
         site_name = raw.get("Site Name")
-        match = index.match(None, site_name, None, None)
+
+        # ZiteManager's "First Level Region" is actually district-level (e.g.
+        # "Baidoa") — resolve the real region via the pcode lookup rather than
+        # misusing that name as both fields. Resolved up front so the district
+        # can DISAMBIGUATE name-only matches (site names repeat across the
+        # country; without this a "Tawakal" record could bind to the wrong
+        # district's Tawakal).
+        district_pcode = raw.get("Region Information/First Level Region ID")
+        resolved_district_name, resolved_region = resolve_district(district_pcode)
+        district_hint = resolved_district_name or raw.get("Region Information/First Level Region Name")
+
+        match = index.match(None, site_name, None, None, district=district_hint)
 
         sector = CLUSTER_TO_SECTOR.get((raw.get("Contact Information/Cluster") or "").strip())
         if sector is None:
@@ -82,12 +93,7 @@ def transform_zite_records(raw_records: list[dict]) -> list[dict]:
         if match.site:
             region, district = match.site.region, match.site.district
         else:
-            # ZiteManager's "First Level Region" is actually district-level
-            # (e.g. "Baidoa") — resolve the real region via the pcode lookup
-            # rather than misusing that name as both fields.
-            district_pcode = raw.get("Region Information/First Level Region ID")
-            resolved_district_name, resolved_region = resolve_district(district_pcode)
-            district = resolved_district_name or raw.get("Region Information/First Level Region Name")
+            district = district_hint
             region = resolved_region
 
         clean.append(

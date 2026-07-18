@@ -7,6 +7,16 @@ list, following the priority chain used by the Incident Reporting Dashboard:
 4. GPS proximity (within SITE_MATCH_DISTANCE_METERS)
 5. Normalized fuzzy name match
 6. Unmatched -> flagged for manual review, never auto-created as a new site.
+
+Name matching (tiers 2/3/5) is DISAMBIGUATED by geography. IDP site names
+repeat heavily across the country — ~12% of master sites share their name
+with at least one other site ("Tawakal" occurs 13 times, "Badbaado" 10) — so
+a name alone is not a unique key. When a name resolves to more than one master
+site the matcher narrows by the submission's district first, then by nearest
+coordinates; if it still can't single one out it returns "probable_name_match"
+(Needs Review) rather than silently binding to an arbitrary same-named site.
+This matters most for ZiteManager records, which match by name only (no ID,
+no GPS).
 """
 
 from __future__ import annotations
@@ -47,6 +57,16 @@ def _normalize_name(name: str) -> str:
     return " ".join(str(name).strip().lower().split())
 
 
+def _canonical_district(name: str | None) -> str:
+    """Fold a submission's district name to the master list's spelling (the
+    same alias table load_master_sites applies), so district disambiguation
+    compares like with like (e.g. 'Baydhaba' -> 'Baidoa'). Imported lazily to
+    keep the module dependency one-way (see load_master_sites)."""
+    from api.lib.transformations import canonical_name
+
+    return canonical_name("district", name) or ""
+
+
 def _haversine_meters(lat1, lon1, lat2, lon2) -> float:
     r = 6371000.0
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
@@ -60,14 +80,17 @@ class MasterSiteIndex:
     def __init__(self, sites: list[MasterSite]):
         self.sites = sites
         self.by_id = {s.cccm_site_id.strip().upper(): s for s in sites if s.cccm_site_id}
-        self.by_name: dict[str, MasterSite] = {}
-        self.by_alt_name: dict[str, MasterSite] = {}
+        # Name buckets hold EVERY site sharing a normalized name (not first-wins)
+        # so an ambiguous name can be disambiguated by geography instead of
+        # silently collapsing to whichever row was read first.
+        self.by_name: dict[str, list[MasterSite]] = {}
+        self.by_alt_name: dict[str, list[MasterSite]] = {}
         for s in sites:
             if s.site_name:
-                self.by_name.setdefault(_normalize_name(s.site_name), s)
+                self.by_name.setdefault(_normalize_name(s.site_name), []).append(s)
             for alt in s.alternative_names:
                 if alt:
-                    self.by_alt_name.setdefault(_normalize_name(alt), s)
+                    self.by_alt_name.setdefault(_normalize_name(alt), []).append(s)
 
         # Sites with coordinates only, for the GPS-proximity tier.
         self._geo_sites = [s for s in sites if s.latitude is not None and s.longitude is not None]
@@ -77,23 +100,58 @@ class MasterSiteIndex:
         # one-by-one) has a flat list to search instead of re-deriving it.
         self._all_normalized_names = list(self.by_name.keys())
 
-        # A submission's (site_id, site_name, lat, lon) repeats across
+        # A submission's (site_id, site_name, lat, lon, district) repeats across
         # reporting periods for the same site — memoizing match() avoids
         # redoing the expensive GPS/fuzzy scans for input already seen.
         self._match_cache: dict[tuple, MatchResult] = {}
 
-    def match(self, site_id_raw: str | None, site_name_raw: str | None, lat: float | None, lon: float | None) -> MatchResult:
-        cache_key = (site_id_raw, site_name_raw, lat, lon)
+    def match(
+        self,
+        site_id_raw: str | None,
+        site_name_raw: str | None,
+        lat: float | None,
+        lon: float | None,
+        district: str | None = None,
+    ) -> MatchResult:
+        cache_key = (site_id_raw, site_name_raw, lat, lon, district)
         cached = self._match_cache.get(cache_key)
         if cached is not None:
             return cached
 
-        result = self._match_uncached(site_id_raw, site_name_raw, lat, lon)
+        result = self._match_uncached(site_id_raw, site_name_raw, lat, lon, district)
         self._match_cache[cache_key] = result
         return result
 
+    def _disambiguate(
+        self, candidates: list[MasterSite], district: str | None, lat: float | None, lon: float | None
+    ) -> MasterSite | None:
+        """From several master sites sharing a name, return the single best one
+        using district then nearest coordinates — or None if still ambiguous."""
+        if len(candidates) == 1:
+            return candidates[0]
+
+        if district:
+            wanted = _normalize_name(_canonical_district(district))
+            same_district = [c for c in candidates if _normalize_name(c.district) == wanted]
+            if len(same_district) == 1:
+                return same_district[0]
+            if same_district:
+                candidates = same_district  # narrowed; break the remaining tie by distance
+
+        if lat is not None and lon is not None:
+            geo = [c for c in candidates if c.latitude is not None and c.longitude is not None]
+            if geo:
+                return min(geo, key=lambda c: _haversine_meters(lat, lon, c.latitude, c.longitude))
+
+        return None
+
     def _match_uncached(
-        self, site_id_raw: str | None, site_name_raw: str | None, lat: float | None, lon: float | None
+        self,
+        site_id_raw: str | None,
+        site_name_raw: str | None,
+        lat: float | None,
+        lon: float | None,
+        district: str | None,
     ) -> MatchResult:
         if site_id_raw:
             site = self.by_id.get(str(site_id_raw).strip().upper())
@@ -102,12 +160,16 @@ class MasterSiteIndex:
 
         if site_name_raw:
             normalized = _normalize_name(site_name_raw)
-            site = self.by_name.get(normalized)
-            if site:
-                return MatchResult(site, "matched_by_official_name", None)
-            site = self.by_alt_name.get(normalized)
-            if site:
-                return MatchResult(site, "matched_by_alternative_name", None)
+            for bucket, status in ((self.by_name, "matched_by_official_name"),
+                                   (self.by_alt_name, "matched_by_alternative_name")):
+                candidates = bucket.get(normalized)
+                if candidates:
+                    site = self._disambiguate(candidates, district, lat, lon)
+                    if site is not None:
+                        return MatchResult(site, status, None)
+                    # Name is real but points at >1 site and we can't tell which:
+                    # flag for human review instead of guessing a confident match.
+                    return MatchResult(candidates[0], "probable_name_match", None)
 
         if lat is not None and lon is not None:
             best_site, best_dist = None, None
@@ -122,7 +184,11 @@ class MasterSiteIndex:
             normalized = _normalize_name(site_name_raw)
             close = difflib.get_close_matches(normalized, self._all_normalized_names, n=1, cutoff=_FUZZY_MATCH_THRESHOLD)
             if close:
-                return MatchResult(self.by_name[close[0]], "probable_name_match", None)
+                candidates = self.by_name[close[0]]
+                # Fuzzy match is uncertain by definition -> always Needs Review;
+                # still pick the geographically-best of the near-name sites.
+                site = self._disambiguate(candidates, district, lat, lon) or candidates[0]
+                return MatchResult(site, "probable_name_match", None)
 
         return MatchResult(None, "unmatched", None)
 
