@@ -95,6 +95,30 @@ def test_temp_fallback_never_merges_two_distinct_sites():
     assert idx.match("CCCM-SO2501-0071", None, None, None).site.cccm_site_id == "CCCM-SO2501-0071"
 
 
+def test_sub_area_field_tool_id_is_never_parsed_into_a_master_id():
+    """Regression guard for a fix that was measured, found harmful, and removed.
+
+    CCCM-BDA-SO2401-01-0028 is Baidoa's "Makuuda 1". Deriving (pcode, trailing
+    number) from it yields CCCM-SO2401-0028, which is a DIFFERENT Baidoa site
+    ("Al Aamin") — the trailing number is a within-sub-area sequence. Against
+    the live payload this mis-bound 1,990 records with 0/141 name agreement, and
+    a district check cannot catch it because both sites are in Baidoa.
+
+    The id must be ignored so the NAME tier resolves the record correctly.
+    """
+    al_aamin = site("CCCM-SO2401-0028", "Al Aamin", "Baidoa")
+    makuuda = site("CCCM-SO2401-1028", "Makuuda 1", "Baidoa")
+    idx = MasterSiteIndex([al_aamin, makuuda])
+
+    r = idx.match("CCCM-BDA-SO2401-01-0028", "Makuuda 1", None, None, district="Baidoa")
+    assert r.site.cccm_site_id == "CCCM-SO2401-1028", "must resolve by name, not by parsing the id"
+    assert r.match_status == "matched_by_official_name"
+
+    # With no name to fall back on, it must stay Unmatched rather than guess.
+    assert idx.match("CCCM-BDA-SO2401-01-0028", None, None, None,
+                     district="Baidoa").match_status == "unmatched"
+
+
 def test_unmatched_when_nothing_lines_up():
     r = INDEX.match("NO-SUCH-ID", "Zzz Nonexistent", None, None)
     assert r.match_status == "unmatched"

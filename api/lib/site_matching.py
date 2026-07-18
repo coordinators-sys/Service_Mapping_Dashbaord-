@@ -17,6 +17,17 @@ coordinates; if it still can't single one out it returns "probable_name_match"
 (Needs Review) rather than silently binding to an arbitrary same-named site.
 This matters most for ZiteManager records, which match by name only (no ID,
 no GPS).
+
+DO NOT try to derive a master Site ID from a field-tool id by parsing. Codes
+like CCCM-BDA-SO2401-01-0028 or ACTEDSO2401_36 embed a sub-area segment, and
+their trailing number is a sequence WITHIN that sub-area, not the master
+sequence. Extracting (pcode, trailing number) was measured against the live
+payload and mapped 1,990 records onto the wrong site with 0/141 site-name
+agreement — e.g. CCCM-BDA-SO2401-01-0028 ("Makuuda 1") resolves to the master's
+CCCM-SO2401-0028, which is "Al Aamin". A district check does NOT catch this,
+because both sites sit in the same district. These ids are left to the name
+tiers, which match them correctly. A real crosswalk table from the cluster is
+the only safe way to key off them.
 """
 
 from __future__ import annotations
@@ -70,6 +81,8 @@ def _strip_temp_marker(site_id: str) -> str:
     against the current master list (no permanent id equals any temp id's
     stripped form), so this can never merge two different sites."""
     return re.sub(r"-T(\d+)$", r"-\1", str(site_id).strip().upper())
+
+
 
 
 def _canonical_district(name: str | None) -> str:
@@ -187,6 +200,13 @@ class MasterSiteIndex:
             site = self.by_id_normalized.get(_strip_temp_marker(raw))
             if site:
                 return MatchResult(site, "matched_by_site_code", None)
+            # NOTE: field-tool ids that embed a sub-area segment
+            # (CCCM-BDA-SO2401-01-0028, ACTEDSO2401_36) are deliberately NOT
+            # parsed into a master id here — see _canonical_site_key's removal
+            # note in the module docstring. Their trailing number is a
+            # within-sub-area sequence, not the master sequence, so deriving a
+            # master id from them silently binds records to the wrong site.
+            # They fall through to the name tiers, which resolve them correctly.
 
         if site_name_raw:
             normalized = _normalize_name(site_name_raw)
