@@ -166,8 +166,24 @@ function autoZoomToSelection(points) {
   }
   const coords = points.filter((p) => p.lat != null && p.lon != null).map((p) => [p.lat, p.lon]);
   if (!coords.length) return;
-  if (coords.length === 1) map.setView(coords[0], 12);
+  if (coords.length === 1) map.setView(coords[0], 13);
   else map.fitBounds(L.latLngBounds(coords).pad(0.2), { maxZoom: 13, animate: true });
+
+  // Bring the map into view so the zoom is actually seen — the filter bar
+  // sits at the top of the page but the map is a section below it, so a
+  // geographic filter would otherwise zoom off-screen. Only scrolls when the
+  // map is mostly out of view, so it won't yank the page if you're already
+  // looking at the map. invalidateSize() re-fits Leaflet after the scroll.
+  const section = document.getElementById("section-maps");
+  if (section) {
+    const rect = section.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const visible = Math.max(0, Math.min(rect.bottom, vh) - Math.max(rect.top, 0));
+    if (visible < Math.min(rect.height, vh) * 0.4) {
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+      setTimeout(() => map.invalidateSize(), 350);
+    }
+  }
 }
 
 function renderClusteredPoints(points, mode) {
