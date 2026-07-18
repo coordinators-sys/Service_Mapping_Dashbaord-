@@ -10,6 +10,13 @@
 __pycache__/
 *.pyc
 
+# Dev-time source data — the master-list spreadsheet is the source the
+# generated data/*.csv are built from; keep it out of the public repo
+# (site-level data is published in derived form via data/master-sites.csv).
+/ML/
+/Masterlist/
+/Somali Maps/
+
 # Local clutter
 *.log
 .claude/

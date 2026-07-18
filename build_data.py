@@ -19,7 +19,7 @@ import openpyxl
 import pandas as pd
 from shapely.geometry import Point
 
-MASTER_LIST_PATH = "Masterlist/UPDATED IDP Site Master List -2nd Quarter 2026 _FINAL_v6.xlsx"
+MASTER_LIST_PATH = "ML/UPDATED IDP Site Master List -2nd Quarter 2026 _FINAL_v6.xlsx"
 ADMIN2_SHAPEFILE = "Somali Maps/somalia_admin2/Som_Admbnda_Adm2_UNDP.shp"
 CATCHMENT_SHAPEFILE = "Somali Maps/catchments/2025_CA_Shapefiles_V01/2025_CA_Shapefiles_V01.shp"
 
