@@ -268,7 +268,7 @@ const TRANSLATIONS = {
     dse_show_all: "Show all",
     dse_matched: "— the record is linked to an official site on the CCCM master list by its permanent Site ID (or exact name). Trust these; they feed the coverage figures directly.",
     dse_review: "— linked only by an approximate site name. Probably correct, but a person should confirm it. Still counted, and flagged for cleanup.",
-    dse_unmatched: "— could not be linked to any master-list site after checking Site ID, official and alternative names, GPS proximity (within 150 m of a master-list site) and approximate names. In practice these are sites not yet registered in the master list — their GPS points sit kilometres from any registered site. Shown for transparency and excluded from master-list coverage counts.",
+    dse_unmatched: "— could not be linked to any master-list site after checking Site ID, official and alternative names, GPS proximity (within 150 m) and approximate names. In practice these are sites not yet registered in the master list. They are NOT listed in this table — they are excluded from coverage counts and tracked separately for master-list registration; the full detail remains in the CSV export.",
     dse_unknown_title: "\"Unknown\" sectors",
     dse_unknown: "— a sector left blank on the form. It is never counted as \"not covered\"; it is excluded from the coverage-rate denominator so a blank can't understate coverage.",
 
@@ -537,7 +537,7 @@ const TRANSLATIONS = {
     dse_show_all: "Muuji dhammaan",
     dse_matched: "— diiwaanka waxaa lagu xiray goob rasmi ah oo ku jirta liiska guud ee CCCM iyadoo la adeegsanayo Aqoonsiga Goobta joogtada ah (ama magaca saxda ah). Kuwan ku kalsoonow; waxay si toos ah u galaan tirooyinka daboolka.",
     dse_review: "— waxaa lagu xiray oo keliya magac goob oo qiyaas ah. Waxaa suurtogal ah inuu sax yahay, laakiin qof baa xaqiijin lahaa. Wali waa la tiriyaa, waxaana loo calaamadeeyay nadiifin.",
-    dse_unmatched: "— lama xirin karin goob liiska guud ku jirta ka dib marka la hubiyay Aqoonsiga Goobta, magacyada rasmiga iyo kuwa kale, u-dhowaanshaha GPS (150 m gudahood ee goob liiska ku jirta) iyo magacyada u dhow. Dhab ahaantii kuwani waa goobo aan wali lagu diiwaangelin liiska guud — GPS-koodu wuxuu ka jiraa kiiloomitirro goob kasta oo diiwaangashan. Waxaa loo muujiyay daahfurnaan, waxaana laga saaray tirinta daboolka liiska guud.",
+    dse_unmatched: "— lama xirin karin goob liiska guud ku jirta ka dib marka la hubiyay Aqoonsiga Goobta, magacyada rasmiga iyo kuwa kale, u-dhowaanshaha GPS (150 m gudahood) iyo magacyada u dhow. Dhab ahaantii kuwani waa goobo aan wali lagu diiwaangelin liiska guud. Shaxdan LAGUMA muujiyo — waxaa laga saaray tirinta daboolka, waxaana si gooni ah loola socdaa diiwaangelinta liiska guud; faahfaahinta oo dhan waxay ku jirtaa soo-dejinta CSV.",
     dse_unknown_title: "Qaybaha \"Aan la garanayn\"",
     dse_unknown: "— qayb foomka laga banneeyay. Waligeed looma tirinayo \"aan la dabooli\"; waxaa laga saaray hoos-tirinta heerka daboolka si banaan aanu u hoos u dhigin daboolka.",
 

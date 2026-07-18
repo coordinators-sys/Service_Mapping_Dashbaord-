@@ -89,11 +89,17 @@ function renderSiteTable(records) {
   // available/missing sectors) — they are excluded from the table rather than
   // shown as empty rows. They still count elsewhere (e.g. reporting
   // completeness), where "reported at all" is the relevant question.
-  const allRows = buildSiteTableRows(records).filter((r) => r.coverageScore !== null);
+  // Unmatched sites are excluded from the public table entirely — they can't
+  // be tied to a master-list site, so listing them alongside real sites only
+  // raised questions. They remain in the CSV exports and the reconciliation
+  // worklist, and the "What do these mean?" panel explains the exclusion.
+  const allRows = buildSiteTableRows(records).filter(
+    (r) => r.coverageScore !== null && statusGroup(r.matchStatus) !== "unmatched"
+  );
 
   // Match-status tally over the CURRENT filter — powers the explainer counts
   // and the "hidden" note, so the numbers always reflect what's on screen.
-  const tally = { matched: 0, review: 0, unmatched: 0 };
+  const tally = { matched: 0, review: 0 };
   allRows.forEach((r) => { tally[statusGroup(r.matchStatus)]++; });
   renderDataStatusExplainer(tally);
 
@@ -103,7 +109,6 @@ function renderSiteTable(records) {
     if (tableStatusFilter === "all") return true;
     if (tableStatusFilter === "hide_unresolved") return g === "matched";
     if (tableStatusFilter === "review") return g === "review";
-    if (tableStatusFilter === "unmatched") return g === "unmatched";
     return true;
   });
   const rows = searchTerm
@@ -162,15 +167,14 @@ function renderSiteTable(records) {
 function renderDataStatusExplainer(tally) {
   const el = document.getElementById("dse-counts");
   if (!el) return;
-  const total = tally.matched + tally.review + tally.unmatched;
+  const total = tally.matched + tally.review;
   const chips = [
     ["matched", tally.matched, "badge-success", t("dse_chip_matched")],
     ["review", tally.review, "badge-warning", t("dse_chip_review")],
-    ["unmatched", tally.unmatched, "badge-critical", t("dse_chip_unmatched")],
   ]
     .map(([, n, cls, label]) => `<span class="dse-chip ${cls}"><strong>${n.toLocaleString()}</strong> ${label}</span>`)
     .join("");
-  const hidden = tableStatusFilter === "hide_unresolved" ? tally.review + tally.unmatched : 0;
+  const hidden = tableStatusFilter === "hide_unresolved" ? tally.review : 0;
   const note = hidden
     ? `<span class="dse-hidden-note">${t("dse_hidden", { n: hidden.toLocaleString() })}
         <button type="button" class="dse-showall" id="dse-showall">${t("dse_show_all")}</button></span>`
