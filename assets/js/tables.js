@@ -82,7 +82,12 @@ function buildSiteTableRows(records) {
 }
 
 function renderSiteTable(records) {
-  const allRows = buildSiteTableRows(records);
+  // "Assessed sites" means at least one sector answered Yes or No. Sites whose
+  // every sector is Unknown carry no assessment signal (no coverage score, no
+  // available/missing sectors) — they are excluded from the table rather than
+  // shown as empty rows. They still count elsewhere (e.g. reporting
+  // completeness), where "reported at all" is the relevant question.
+  const allRows = buildSiteTableRows(records).filter((r) => r.coverageScore !== null);
 
   // Match-status tally over the CURRENT filter — powers the explainer counts
   // and the "hidden" note, so the numbers always reflect what's on screen.
