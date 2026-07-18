@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="assets/css/dashboard.css?v=27" />
+  <link rel="stylesheet" href="assets/css/dashboard.css?v=28" />
 </head>
 <body>
   <header class="app-header">
@@ -236,7 +236,9 @@
         </div>
         <div class="card">
           <div class="card-header"><h2 data-i18n="h_catchment_table">Catchment overview</h2></div>
-          <div class="table-scroll">
+          <!-- Capped to roughly the chart card's height so the two cards sit
+               level; scrolls internally, and the button removes the cap. -->
+          <div class="table-scroll table-capped" id="catchment-table-scroll">
             <table class="data-table" id="catchment-table">
               <thead>
                 <tr>
@@ -251,6 +253,8 @@
               <tbody id="catchment-table-body"></tbody>
             </table>
           </div>
+          <button type="button" class="btn btn-light table-expand-btn" id="btn-catchment-expand"
+                  aria-controls="catchment-table-scroll" aria-expanded="false" data-i18n="show_full_list">Show full list</button>
         </div>
       </div>
     </section>
@@ -348,14 +352,14 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF" crossorigin="anonymous"></script>
-  <script src="assets/js/translations.js?v=27"></script>
-  <script src="assets/js/multiselect.js?v=27"></script>
-  <script src="assets/js/filters.js?v=27"></script>
-  <script src="assets/js/semantic.js?v=27"></script>
-  <script src="assets/js/charts.js?v=27"></script>
-  <script src="assets/js/maps.js?v=27"></script>
-  <script src="assets/js/tables.js?v=27"></script>
-  <script src="assets/js/export.js?v=27"></script>
-  <script src="assets/js/app.js?v=27"></script>
+  <script src="assets/js/translations.js?v=28"></script>
+  <script src="assets/js/multiselect.js?v=28"></script>
+  <script src="assets/js/filters.js?v=28"></script>
+  <script src="assets/js/semantic.js?v=28"></script>
+  <script src="assets/js/charts.js?v=28"></script>
+  <script src="assets/js/maps.js?v=28"></script>
+  <script src="assets/js/tables.js?v=28"></script>
+  <script src="assets/js/export.js?v=28"></script>
+  <script src="assets/js/app.js?v=28"></script>
 </body>
 </html>

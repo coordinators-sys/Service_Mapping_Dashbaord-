@@ -767,3 +767,8 @@ body {
   font-size: 0.8rem; font-weight: 700;
 }
 .gap-donut-empty { background: var(--border); }
+
+/* Capped table: same visual height as the tall chart card beside it */
+.table-capped { max-height: 460px; overflow-y: auto; }
+.table-capped thead th { position: sticky; top: 0; background: var(--card-bg); z-index: 1; }
+.table-expand-btn { margin-top: 10px; width: 100%; }

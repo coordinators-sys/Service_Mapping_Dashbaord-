@@ -184,6 +184,16 @@ function setupEventListeners() {
   document.getElementById("heatmap-row-level") && document.getElementById("heatmap-row-level").addEventListener("change", () => renderAgencies(filtered()));
   document.getElementById("map-mode").addEventListener("change", () => renderGeography(filtered()));
   document.getElementById("btn-reset-map").addEventListener("click", resetMapView);
+  // Catchment overview starts capped to the chart card's height; the button
+  // removes/restores the cap so the full list is one click away.
+  const catchExpand = document.getElementById("btn-catchment-expand");
+  if (catchExpand) catchExpand.addEventListener("click", () => {
+    const scroll = document.getElementById("catchment-table-scroll");
+    const expanded = scroll.classList.toggle("table-capped") === false;
+    catchExpand.setAttribute("aria-expanded", String(expanded));
+    catchExpand.textContent = t(expanded ? "show_less" : "show_full_list");
+    if (!expanded) scroll.scrollIntoView({ block: "nearest" });
+  });
   document.getElementById("btn-fullscreen-map").addEventListener("click", toggleMapFullscreen);
 
   document.getElementById("btn-export-csv").addEventListener("click", exportFilteredRecords);
