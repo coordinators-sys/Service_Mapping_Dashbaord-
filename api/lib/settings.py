@@ -53,6 +53,13 @@ KOBO_ASSET_UID = _env("KOBO_ASSET_UID")
 KOBO_API_TOKEN = _env("KOBO_API_TOKEN")
 CACHE_TTL_SECONDS = int(_env("CACHE_TTL_SECONDS", "300"))
 SITE_MATCH_DISTANCE_METERS = float(_env("SITE_MATCH_DISTANCE_METERS", "150"))
+# Wider radius used ONLY to corroborate an approximate-name match: the fuzzy
+# name and the coordinates must independently point at the SAME site. Blind
+# GPS matching stays at the tight radius above; corroboration can afford a
+# wider one because two independent signals agreeing is much stronger
+# evidence (IDP sites span hundreds of metres; GPS is taken wherever the
+# enumerator stood, the master coordinate is one point in the site).
+SITE_NAME_GPS_CONFIRM_METERS = float(_env("SITE_NAME_GPS_CONFIRM_METERS", "500"))
 APP_ENV = _env("APP_ENV", "development")
 
 # Optional secondary data source: IOM's ZiteManager service-provider contact

@@ -139,6 +139,32 @@ def test_crosswalk_target_may_be_a_temporary_master_id():
     assert r.site.cccm_site_id == "CCCM-SO2501-T0071"
 
 
+def test_fuzzy_name_confirmed_by_gps_graduates_out_of_needs_review():
+    """Typed-name spelling variant + coordinates near THAT site = two
+    independent signals agreeing -> confident match, with the distance kept."""
+    waysiyow = site("CCCM-SO2401-0500", "Waysiyow", "Baidoa", 3.100, 43.650)
+    idx = MasterSiteIndex([waysiyow, UNIQUE])
+    # ~330 m away: outside the 150 m blind-GPS tier, inside the 500 m confirm radius
+    r = idx.match(None, "Weysiyow", 3.103, 43.650, district="Baidoa")
+    assert r.match_status == "matched_by_name_gps"
+    assert r.site.cccm_site_id == "CCCM-SO2401-0500"
+    assert r.match_distance_meters is not None and 150 < r.match_distance_meters <= 500
+
+
+def test_fuzzy_name_with_far_gps_stays_needs_review():
+    waysiyow = site("CCCM-SO2401-0500", "Waysiyow", "Baidoa", 3.100, 43.650)
+    idx = MasterSiteIndex([waysiyow])
+    # ~2.2 km away: name is close but the coordinates do NOT corroborate.
+    r = idx.match(None, "Weysiyow", 3.120, 43.650, None)
+    assert r.match_status == "probable_name_match"
+
+
+def test_fuzzy_name_without_gps_stays_needs_review():
+    waysiyow = site("CCCM-SO2401-0500", "Waysiyow", "Baidoa", 3.100, 43.650)
+    idx = MasterSiteIndex([waysiyow])
+    assert idx.match(None, "Weysiyow", None, None).match_status == "probable_name_match"
+
+
 def test_unmatched_when_nothing_lines_up():
     r = INDEX.match("NO-SUCH-ID", "Zzz Nonexistent", None, None)
     assert r.match_status == "unmatched"

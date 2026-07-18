@@ -252,9 +252,19 @@ class MasterSiteIndex:
             close = difflib.get_close_matches(normalized, self._all_normalized_names, n=1, cutoff=_FUZZY_MATCH_THRESHOLD)
             if close:
                 candidates = self.by_name[close[0]]
-                # Fuzzy match is uncertain by definition -> always Needs Review;
-                # still pick the geographically-best of the near-name sites.
                 site = self._disambiguate(candidates, district, lat, lon) or candidates[0]
+                # GPS corroboration: the typed name approximately matches THIS
+                # site AND the submission's coordinates land near it — two
+                # independent signals agreeing on the same site. That is
+                # confident evidence, not a guess, so it graduates out of
+                # Needs Review. (Any record reaching this tier is already
+                # >SITE_MATCH_DISTANCE_METERS from every master site, so the
+                # blind-GPS tier could not have caught it.)
+                if lat is not None and lon is not None and site.latitude is not None:
+                    dist = _haversine_meters(lat, lon, site.latitude, site.longitude)
+                    if dist <= settings.SITE_NAME_GPS_CONFIRM_METERS:
+                        return MatchResult(site, "matched_by_name_gps", round(dist, 1))
+                # Fuzzy match alone stays uncertain by definition -> Needs Review.
                 return MatchResult(site, "probable_name_match", None)
 
         return MatchResult(None, "unmatched", None)

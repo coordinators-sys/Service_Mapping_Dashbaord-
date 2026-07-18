@@ -25,6 +25,7 @@ const STATUS_GROUP = {
   matched_by_official_name: "matched",
   matched_by_alternative_name: "matched",
   matched_by_gps: "matched",
+  matched_by_name_gps: "matched", // approximate name CONFIRMED by coordinates
   probable_name_match: "review",
   unmatched: "unmatched",
   area_level_report: "matched", // by-design area reports are not data problems
@@ -40,6 +41,7 @@ const MATCH_BADGE = {
   matched_by_official_name: ["badge_matched_name", "badge-success"],
   matched_by_alternative_name: ["badge_matched_alt", "badge-success"],
   matched_by_gps: ["badge_matched_gps", "badge-warning"],
+  matched_by_name_gps: ["badge_matched_name_gps", "badge-success"],
   probable_name_match: ["badge_needs_review", "badge-warning"],
   unmatched: ["badge_unmatched", "badge-critical"],
   // Catchment/district-level submissions: the form never asks for a site at
