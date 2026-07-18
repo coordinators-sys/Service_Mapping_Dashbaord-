@@ -119,6 +119,26 @@ def test_sub_area_field_tool_id_is_never_parsed_into_a_master_id():
                      district="Baidoa").match_status == "unmatched"
 
 
+def test_curated_crosswalk_resolves_form_codes_exactly():
+    """Codes from the Kobo form's site.csv that the master list doesn't use
+    resolve via the curated crosswalk — exact string lookup, no parsing."""
+    master = site("CCCM-SO2401-0373", "Kulmiye", "Baidoa")
+    idx = MasterSiteIndex([master], code_crosswalk={"ACTEDSO2401_26": "CCCM-SO2401-0373"})
+    r = idx.match("ACTEDSO2401_26", None, None, None)
+    assert r.match_status == "matched_by_site_code"
+    assert r.site.cccm_site_id == "CCCM-SO2401-0373"
+    # near-miss spellings are NOT parsed into a crosswalk hit
+    assert idx.match("ACTEDSO2401_27", None, None, None).match_status == "unmatched"
+
+
+def test_crosswalk_target_may_be_a_temporary_master_id():
+    temp = site("CCCM-SO2501-T0071", "Guudale", "Xudur")
+    idx = MasterSiteIndex([temp], code_crosswalk={"ACTEDSO2501_9": "CCCM-SO2501-0071"})
+    r = idx.match("ACTEDSO2501_9", None, None, None)
+    assert r.match_status == "matched_by_site_code"
+    assert r.site.cccm_site_id == "CCCM-SO2501-T0071"
+
+
 def test_unmatched_when_nothing_lines_up():
     r = INDEX.match("NO-SUCH-ID", "Zzz Nonexistent", None, None)
     assert r.match_status == "unmatched"

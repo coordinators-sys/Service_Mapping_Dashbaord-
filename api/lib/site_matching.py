@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import csv
 import difflib
+import json
 import math
 import re
 from dataclasses import dataclass
@@ -105,9 +106,16 @@ def _haversine_meters(lat1, lon1, lat2, lon2) -> float:
 
 
 class MasterSiteIndex:
-    def __init__(self, sites: list[MasterSite]):
+    def __init__(self, sites: list[MasterSite], code_crosswalk: dict[str, str] | None = None):
         self.sites = sites
         self.by_id = {s.cccm_site_id.strip().upper(): s for s in sites if s.cccm_site_id}
+        # Curated form-code -> master-id crosswalk (data/site-code-crosswalk.json,
+        # generated from the Kobo form's site.csv by NAME+DISTRICT resolution —
+        # see scripts/build_site_code_crosswalk.py). Exact-string lookups only.
+        self.code_crosswalk = {
+            str(k).strip().upper(): str(v).strip().upper()
+            for k, v in (code_crosswalk or {}).items()
+        }
         # Temporary-marker-insensitive id index (CCCM-SO2501-T0071 also reachable
         # as CCCM-SO2501-0071 — the form field teams collect with). Only keys
         # that resolve to exactly one master site are kept, so an unlucky future
@@ -200,6 +208,15 @@ class MasterSiteIndex:
             site = self.by_id_normalized.get(_strip_temp_marker(raw))
             if site:
                 return MatchResult(site, "matched_by_site_code", None)
+            # Curated crosswalk: the Kobo form's site.csv keys some sites by
+            # codes the master list doesn't use (ACTEDSO…, stale codes). Each
+            # entry was pre-verified by name+district, so this is a confident
+            # code match — exact string lookup, no parsing.
+            target = self.code_crosswalk.get(raw)
+            if target:
+                site = self.by_id.get(target) or self.by_id_normalized.get(_strip_temp_marker(target))
+                if site:
+                    return MatchResult(site, "matched_by_site_code", None)
             # NOTE: field-tool ids that embed a sub-area segment
             # (CCCM-BDA-SO2401-01-0028, ACTEDSO2401_36) are deliberately NOT
             # parsed into a master id here — see _canonical_site_key's removal
@@ -269,9 +286,19 @@ def load_master_sites(csv_path: str) -> list[MasterSite]:
     return sites
 
 
+def _load_code_crosswalk(path: str = "data/site-code-crosswalk.json") -> dict[str, str]:
+    """Optional curated form-code -> master-id map; absent file means no
+    crosswalk tier (the matcher works without it)."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f).get("entries", {})
+    except FileNotFoundError:
+        return {}
+
+
 @lru_cache(maxsize=1)
 def get_master_site_index(csv_path: str = "data/master-sites.csv") -> MasterSiteIndex:
     """Cached for the lifetime of the serverless function instance — avoids
     re-parsing the ~6.8k-row CSV on every request within the same warm
     container."""
-    return MasterSiteIndex(load_master_sites(csv_path))
+    return MasterSiteIndex(load_master_sites(csv_path), code_crosswalk=_load_code_crosswalk())
