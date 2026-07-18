@@ -126,6 +126,11 @@ class ParsedSubmission:
     submitted_by: str | None
     site_id_raw: str | None  # the CCCM Site ID if the form's site_name select gave one directly
     site_name_raw: str | None  # free-text name when site_name was "other"
+    # The form's reporting level: "site" | "catchment" | "district" (question
+    # `level`). site_name is only ASKED at site level, so a catchment/district
+    # submission legitimately has no site reference — it must be labelled an
+    # area-level report, not treated as a failed site match.
+    reporting_level: str | None
     region: str | None
     district: str | None
     reporting_period: str | None
@@ -194,6 +199,11 @@ def parse_submission(raw: dict) -> ParsedSubmission:
 
     lat, lon = parse_geopoint(find_by_suffix(raw, SITE_FIELD_SUFFIXES["gps"]))
 
+    # Reporting level ("site" / "catchment" / "district"). Suffix-matched like
+    # every other field so group-prefix drift can't hide it.
+    level_value = find_by_suffix(raw, "level")
+    reporting_level = str(level_value).strip().lower() if level_value else None
+
     rows: list[SectorAgencyRow] = []
     for sector_name, stem in SECTOR_DEFS:
         coverage_status = coverage_from_yes_no(find_by_suffix(raw, CLUSTER_FIELD_SUFFIX[stem]))
@@ -220,6 +230,7 @@ def parse_submission(raw: dict) -> ParsedSubmission:
         submitted_by=raw.get("_submitted_by"),
         site_id_raw=site_id_raw,
         site_name_raw=site_name_raw,
+        reporting_level=reporting_level,
         region=region_name,
         district=district_name,
         reporting_period=_reporting_period_from(submission_time),

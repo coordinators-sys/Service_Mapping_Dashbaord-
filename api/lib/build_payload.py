@@ -84,6 +84,18 @@ def _build_clean_records(raw_submissions: list[dict]) -> list[dict]:
             parsed.site_id_raw, parsed.site_name_raw, parsed.latitude, parsed.longitude,
             district=parsed.district,
         )
+        # Catchment/district-level submissions never ask for a site (the form
+        # only shows site_name at site level), so "no site reference" is the
+        # DESIGNED outcome there — label it an area-level report rather than a
+        # failed site match. Only genuine site-level blanks stay "unmatched".
+        match_status = match.match_status
+        if (
+            match_status == "unmatched"
+            and not parsed.site_id_raw
+            and not parsed.site_name_raw
+            and parsed.reporting_level in ("catchment", "district")
+        ):
+            match_status = "area_level_report"
 
         for row in parsed.rows:
             record = {
@@ -97,7 +109,7 @@ def _build_clean_records(raw_submissions: list[dict]) -> list[dict]:
                 "siteNameRaw": parsed.site_name_raw,
                 "matchedSiteCode": match.site.cccm_site_id if match.site else None,
                 "matchedSiteName": match.site.site_name if match.site else None,
-                "matchStatus": match.match_status,
+                "matchStatus": match_status,
                 "matchDistanceMeters": match.match_distance_meters,
                 "latitude": match.site.latitude if match.site else parsed.latitude,
                 "longitude": match.site.longitude if match.site else parsed.longitude,

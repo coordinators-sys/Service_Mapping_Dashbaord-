@@ -315,6 +315,14 @@
     "SO2804": {
       "name": "Jamaame",
       "region_code": "SO28"
+    },
+    "SO2203": {
+      "name": "Daynile",
+      "region_code": "SO22"
+    },
+    "SO2210": {
+      "name": "Kahda",
+      "region_code": "SO22"
     }
   }
 }

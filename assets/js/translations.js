@@ -239,6 +239,7 @@ const TRANSLATIONS = {
     badge_matched_gps: "Matched by GPS",
     badge_needs_review: "Needs review",
     badge_unmatched: "Unmatched",
+    badge_area_report: "Catchment/district report",
 
     // Data-status explainer + table status filter
     status_filter_default: "Matched sites only",
@@ -494,6 +495,7 @@ const TRANSLATIONS = {
     badge_matched_gps: "Lagu xiray GPS",
     badge_needs_review: "U baahan dib-u-eegis",
     badge_unmatched: "Aan la isku xirin",
+    badge_area_report: "Warbixin heer deegaan/degmo",
 
     // Data-status explainer + table status filter
     status_filter_default: "Kaliya goobaha la isku xiray",

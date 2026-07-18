@@ -27,6 +27,7 @@ const STATUS_GROUP = {
   matched_by_gps: "matched",
   probable_name_match: "review",
   unmatched: "unmatched",
+  area_level_report: "matched", // by-design area reports are not data problems
 };
 function statusGroup(matchStatus) {
   return STATUS_GROUP[matchStatus] || "review";
@@ -41,6 +42,9 @@ const MATCH_BADGE = {
   matched_by_gps: ["badge_matched_gps", "badge-warning"],
   probable_name_match: ["badge_needs_review", "badge-warning"],
   unmatched: ["badge_unmatched", "badge-critical"],
+  // Catchment/district-level submissions: the form never asks for a site at
+  // those levels, so "no site" is by design — neutral badge, not a red flag.
+  area_level_report: ["badge_area_report", "badge-unknown"],
 };
 
 function buildSiteTableRows(records) {
