@@ -58,7 +58,12 @@ function sitePointsFromRecords(records) {
     if (r.agency && r.coverageStatus === "Yes") entry.agencies.add(r.agency);
     if (r.lastUpdated && (!entry.lastUpdated || r.lastUpdated > entry.lastUpdated)) entry.lastUpdated = r.lastUpdated;
   });
-  return Array.from(bySite.values());
+  // Only ASSESSED sites go on the map (>=1 sector answered Yes or No) — same
+  // rule as the sites table. Sites with zero assessment data would all render
+  // as grey "unknown" dots that carry no information and confuse readers.
+  return Array.from(bySite.values()).filter((p) =>
+    Object.values(p.statuses).some((s) => s === "Yes" || s === "No")
+  );
 }
 
 function pointColorForMode(point, mode) {
