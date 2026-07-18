@@ -27,6 +27,9 @@ const MATCH_BADGE = {
 };
 
 function buildSiteTableRows(records) {
+  // Sector availability per site uses the canonical semantic status
+  // (Yes>No>Unknown), consistent with the coverage charts and map.
+  const statusMap = siteSectorStatusMap(siteSectorCells(records));
   const bySite = new Map();
   records.forEach((r) => {
     const key = siteKey(r);
@@ -34,13 +37,12 @@ function buildSiteTableRows(records) {
     if (!bySite.has(key)) {
       bySite.set(key, {
         siteKey: key, siteName: siteLabel(r), region: r.region, district: r.district,
-        catchment: r.catchment, agencies: new Set(), statuses: {}, lastUpdated: r.lastUpdated,
+        catchment: r.catchment, agencies: new Set(), statuses: statusMap.get(key) || {}, lastUpdated: r.lastUpdated,
         matchStatus: r.matchStatus, dataQualityStatus: r.dataQualityStatus,
       });
     }
     const entry = bySite.get(key);
     if (r.agency && r.coverageStatus === "Yes") entry.agencies.add(r.agency);
-    if (r.sector) entry.statuses[r.sector] = entry.statuses[r.sector] === "Yes" ? "Yes" : r.coverageStatus;
     if (r.lastUpdated && (!entry.lastUpdated || r.lastUpdated > entry.lastUpdated)) entry.lastUpdated = r.lastUpdated;
   });
 
@@ -95,8 +97,8 @@ function renderSiteTable(records) {
       <td>${escapeHtml(friendlyCatchment(r.catchment) || "—")}</td>
       <td>${escapeHtml(r.siteKey)}</td>
       <td>${r.activeAgencies}</td>
-      <td>${r.sectorsAvailable.join(", ") || "—"}</td>
-      <td>${r.sectorsMissing.join(", ") || "—"}</td>
+      <td>${r.sectorsAvailable.map((s) => `<span class="cell-sector" title="${escapeHtml(s)}">${sectorIcon(s, 15)}</span>`).join("") || "—"}</td>
+      <td>${r.sectorsMissing.map((s) => `<span class="cell-sector cell-sector-missing" title="${escapeHtml(s)}">${sectorIcon(s, 15)}</span>`).join("") || "—"}</td>
       <td>${r.coverageScore === null ? "—" : r.coverageScore + "%"}</td>
       <td>${r.lastUpdated ? r.lastUpdated.slice(0, 10) : "—"}</td>
       <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>

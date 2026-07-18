@@ -213,22 +213,24 @@ function computeSitesByAgency(records, topN = 15) {
 }
 
 function computeSiteGapProfiles(records) {
-  const bySite = new Map();
+  // Status per site×sector comes from the semantic layer (Yes>No>Unknown),
+  // not an order-dependent per-record rollup — so gap counts reconcile with
+  // the sector coverage charts. Site metadata (name/region/district/catchment)
+  // is taken from the first record seen for each site.
+  const statusMap = siteSectorStatusMap(siteSectorCells(records));
+  const meta = new Map();
   records.forEach((r) => {
     const key = siteKey(r);
-    if (!key) return;
-    if (!bySite.has(key)) {
-      bySite.set(key, { siteKey: key, siteName: siteLabel(r), region: r.region, district: r.district, catchment: r.catchment || null, statuses: {} });
+    if (key && !meta.has(key)) {
+      meta.set(key, { siteKey: key, siteName: siteLabel(r), region: r.region, district: r.district, catchment: r.catchment || null });
     }
-    const entry = bySite.get(key);
-    if (!entry.statuses[r.sector]) entry.statuses[r.sector] = r.coverageStatus;
-    else if (r.coverageStatus === "Yes") entry.statuses[r.sector] = "Yes"; // covered wins over conflicting rows
   });
 
-  return Array.from(bySite.values()).map((site) => {
-    const gaps = SECTORS.filter((s) => site.statuses[s] === "No");
-    const unknownSectors = SECTORS.filter((s) => site.statuses[s] === "Unknown" || site.statuses[s] === undefined);
-    const noProvider = SECTORS.every((s) => site.statuses[s] !== "Yes");
+  return Array.from(statusMap.entries()).map(([key, statuses]) => {
+    const site = meta.get(key) || { siteKey: key, siteName: key, region: null, district: null, catchment: null };
+    const gaps = SECTORS.filter((s) => statuses[s] === "No");
+    const unknownSectors = SECTORS.filter((s) => statuses[s] === "Unknown" || statuses[s] === undefined);
+    const noProvider = SECTORS.every((s) => statuses[s] !== "Yes");
     const missingAllPriority = PRIORITY_SECTORS.every((p) => gaps.includes(p));
 
     // "Critical gap" = an approved threshold, distinct from "has any confirmed
@@ -667,11 +669,13 @@ function renderPrioritySitesTable() {
   const body = rows
     .map((s) => {
       const missing = s.gaps.join(", ") || "—";
+      const missingIcons = s.gaps.map((g) => `<span class="cell-sector cell-sector-missing" title="${escapeHtml(g)}">${sectorIcon(g, 15)}</span>`).join("") || "—";
       const badgeClass = s.isCritical ? "badge-critical" : "badge-warning";
       return `<tr data-site="${escapeHtml(s.siteKey)}" title="${escapeHtml(t("missing_label", { list: missing }))}">
         <td><strong>${escapeHtml(s.siteName)}</strong><div class="cell-sub">${escapeHtml(s.siteKey)}</div></td>
         <td>${escapeHtml(s.district || "—")}</td>
         <td><span class="badge ${badgeClass}">${t("n_sectors_missing", { n: s.gapCount })}</span></td>
+        <td class="priority-missing-icons">${missingIcons}</td>
       </tr>`;
     })
     .join("");
@@ -689,6 +693,7 @@ function renderPrioritySitesTable() {
         <th data-i18n="col_site">${t("col_site")}</th>
         <th data-i18n="col_district">${t("col_district")}</th>
         <th>${t("col_gaps")}</th>
+        <th>${t("col_missing_sectors")}</th>
       </tr></thead>
       <tbody>${body}</tbody>
     </table>
@@ -722,23 +727,37 @@ function renderAgencies(records) {
 // sites only so far) are excluded from this section, not counted as gaps.
 
 function computeCatchmentAnalysis(records) {
-  const inCatchment = records.filter((r) => r.catchment);
+  // Coverage % is computed over canonical site×sector CELLS within each
+  // catchment (covered / covered+notCovered), so a catchment's rate uses the
+  // same grain and precedence as the sector charts. Active agencies stay a
+  // record-level fact (a provider row IS the agency signal).
+  const siteCatchment = new Map(); // site -> catchment (from records)
   const byCatchment = new Map();
-  inCatchment.forEach((r) => {
-    if (!byCatchment.has(r.catchment)) {
-      byCatchment.set(r.catchment, { catchment: r.catchment, district: r.district, sites: new Set(), agencies: new Set(), covered: 0, notCovered: 0, missing: {} });
-    }
-    const entry = byCatchment.get(r.catchment);
+  records.forEach((r) => {
+    if (!r.catchment) return;
     const key = siteKey(r);
-    if (key) entry.sites.add(key);
-    if (r.coverageStatus === "Yes") {
-      entry.covered += 1;
-      if (r.agency) entry.agencies.add(r.agency);
-    } else if (r.coverageStatus === "No") {
-      entry.notCovered += 1;
-      if (r.sector) entry.missing[r.sector] = (entry.missing[r.sector] || 0) + 1;
+    if (key) siteCatchment.set(key, r.catchment);
+    let entry = byCatchment.get(r.catchment);
+    if (!entry) {
+      entry = { catchment: r.catchment, district: r.district, sites: new Set(), agencies: new Set(), covered: 0, notCovered: 0, missing: {} };
+      byCatchment.set(r.catchment, entry);
     }
+    if (key) entry.sites.add(key);
+    if (r.coverageStatus === "Yes" && r.agency) entry.agencies.add(r.agency);
   });
+
+  // Roll canonical cells into their catchment.
+  for (const c of siteSectorCells(records)) {
+    const catchment = siteCatchment.get(c.site);
+    if (!catchment) continue;
+    const entry = byCatchment.get(catchment);
+    if (!entry) continue;
+    if (c.status === "Yes") entry.covered += 1;
+    else if (c.status === "No") {
+      entry.notCovered += 1;
+      entry.missing[c.sector] = (entry.missing[c.sector] || 0) + 1;
+    }
+  }
 
   return Array.from(byCatchment.values())
     .map((e) => {

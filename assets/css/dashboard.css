@@ -703,3 +703,9 @@ body {
 .matrix-zero { color: var(--muted); }
 .matrix-total-col { border-left: 2px solid var(--control-border); font-weight: 700; }
 .matrix-total-row td { border-top: 2px solid var(--control-border); font-weight: 700; color: var(--muted); }
+
+/* Sector icons inside table cells */
+.cell-sector { display: inline-flex; margin: 0 1px; vertical-align: middle; }
+.cell-sector img { border-radius: 3px; }
+.cell-sector-missing img { filter: grayscale(0.3); opacity: 0.85; outline: 1px solid var(--critical); outline-offset: 1px; border-radius: 3px; }
+.priority-missing-icons { max-width: 140px; line-height: 1.6; }

@@ -113,3 +113,34 @@ test("sector totals reconcile: sum over sectors equals total cells", () => {
   const sum = per.reduce((a, s) => a + s.covered + s.notCovered + s.unknown, 0);
   assert.strictEqual(sum, cells.length);
 });
+
+test("siteSectorStatusMap resolves No over Unknown REGARDLESS of record order", () => {
+  // No then Unknown
+  const a = buildSiteSectorStatus([
+    rec({ matchedSiteCode: "X", coverageStatus: "No" }),
+    rec({ matchedSiteCode: "X", coverageStatus: "Unknown" }),
+  ]);
+  // Unknown then No
+  const b = buildSiteSectorStatus([
+    rec({ matchedSiteCode: "Y", coverageStatus: "Unknown" }),
+    rec({ matchedSiteCode: "Y", coverageStatus: "No" }),
+  ]);
+  const ma = semantic.siteSectorStatusMap(a);
+  const mb = semantic.siteSectorStatusMap(b);
+  assert.strictEqual(ma.get("X").WASH, "No");
+  assert.strictEqual(mb.get("Y").WASH, "No"); // the old per-record rollup returned Unknown here
+});
+
+test("siteSectorStatusMap agrees with sectorCoverageFromCells site-for-site", () => {
+  const records = [];
+  for (let i = 0; i < 20; i++) {
+    records.push(rec({ matchedSiteCode: `S${i}`, coverageStatus: ["Yes", "No", "Unknown"][i % 3] }));
+  }
+  const cells = buildSiteSectorStatus(records);
+  const map = semantic.siteSectorStatusMap(cells);
+  let covered = 0, notCovered = 0;
+  map.forEach((s) => { if (s.WASH === "Yes") covered++; else if (s.WASH === "No") notCovered++; });
+  const [wash] = sectorCoverageFromCells(cells, ["WASH"]);
+  assert.strictEqual(covered, wash.covered);
+  assert.strictEqual(notCovered, wash.notCovered);
+});

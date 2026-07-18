@@ -42,16 +42,19 @@ function loadBoundaryLayer(map, geojson, options) {
 }
 
 function sitePointsFromRecords(records) {
+  // Marker COLOR is driven by canonical site×sector status (semantic layer,
+  // Yes>No>Unknown), so a site's map color always matches the coverage
+  // charts. Coordinates, agencies and freshness stay record-level facts.
+  const statusMap = siteSectorStatusMap(siteSectorCells(records));
   const bySite = new Map();
   records.forEach((r) => {
     if (r.latitude == null || r.longitude == null) return;
     const key = siteKey(r);
     if (!key) return;
     if (!bySite.has(key)) {
-      bySite.set(key, { key, name: siteLabel(r), lat: r.latitude, lon: r.longitude, statuses: {}, agencies: new Set(), lastUpdated: r.lastUpdated });
+      bySite.set(key, { key, name: siteLabel(r), lat: r.latitude, lon: r.longitude, statuses: statusMap.get(key) || {}, agencies: new Set(), lastUpdated: r.lastUpdated });
     }
     const entry = bySite.get(key);
-    if (r.sector) entry.statuses[r.sector] = entry.statuses[r.sector] === "Yes" ? "Yes" : r.coverageStatus;
     if (r.agency && r.coverageStatus === "Yes") entry.agencies.add(r.agency);
     if (r.lastUpdated && (!entry.lastUpdated || r.lastUpdated > entry.lastUpdated)) entry.lastUpdated = r.lastUpdated;
   });
@@ -138,7 +141,33 @@ function renderGeography(records) {
     });
   }
 
+  autoZoomToSelection(points);
   renderMapLegend(mode);
+}
+
+// When a geographic filter (district/catchment/site) is active, fit the map
+// to the sites in the current selection so users don't have to pan/zoom
+// manually. National extent is restored when those filters are cleared.
+// Guarded by a signature so we don't re-fit (and fight the user's manual
+// zoom) on every unrelated re-render.
+function autoZoomToSelection(points) {
+  const map = state.maps.main;
+  if (!map) return;
+  const geoActive = filters.district.size || filters.catchment.size || filters.site.size;
+  const signature = geoActive
+    ? `${[...filters.district].sort()}|${[...filters.catchment].sort()}|${[...filters.site].sort()}`
+    : "";
+  if (signature === state.maps.lastZoomSignature) return;
+  state.maps.lastZoomSignature = signature;
+
+  if (!geoActive) {
+    map.setView(SOMALIA_CENTER, SOMALIA_ZOOM);
+    return;
+  }
+  const coords = points.filter((p) => p.lat != null && p.lon != null).map((p) => [p.lat, p.lon]);
+  if (!coords.length) return;
+  if (coords.length === 1) map.setView(coords[0], 12);
+  else map.fitBounds(L.latLngBounds(coords).pad(0.2), { maxZoom: 13, animate: true });
 }
 
 function renderClusteredPoints(points, mode) {
