@@ -772,3 +772,9 @@ body {
 .table-capped { max-height: 460px; overflow-y: auto; }
 .table-capped thead th { position: sticky; top: 0; background: var(--card-bg); z-index: 1; }
 .table-expand-btn { margin-top: 10px; width: 100%; }
+
+/* Opt-in equal-height pair: both cards stretch to the same height (the
+   taller, list-capped one sets it) instead of sizing to their own content. */
+.chart-grid-equal { align-items: stretch; }
+.chart-grid-equal .card { display: flex; flex-direction: column; }
+.chart-grid-equal .card > div:last-child { flex: 1; min-height: 0; }
