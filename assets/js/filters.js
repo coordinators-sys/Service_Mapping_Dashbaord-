@@ -80,8 +80,11 @@ function splitCatchment(value) {
   return { group, label };
 }
 
+// Both record streams are collected under the SAME cluster exercise, so the
+// public labels carry CCCM Cluster branding, not the hosting platform's name.
+// Internal dataSource values ("kobo"/"zitemanager") are unchanged.
 function sourceLabel(v) {
-  return v === "kobo" ? "KoboToolbox" : v === "zitemanager" ? "IOM ZiteManager" : String(v);
+  return v === "kobo" ? "CCCM Service Mapping Tool" : v === "zitemanager" ? "CCCM Provider Directory" : String(v);
 }
 
 // Readable form of a raw catchment value: "Gaalkacyo · CA01_GN" -> "Gaalkacyo North · CA01"

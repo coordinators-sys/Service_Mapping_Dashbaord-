@@ -74,8 +74,8 @@ const TRANSLATIONS = {
     meth_title: "Methodology & indicator definitions",
     meth_updated: "Last methodology update: 2026-07-18.",
     methodology: [
-      ["Data sources", "KoboToolbox service-mapping submissions plus IOM ZiteManager service-provider records, merged into one record set (each record is tagged with its source; a Data source filter allows Combined/Kobo/ZiteManager views). Data refreshes from the sources on load, cached server-side for 5 minutes, with a daily scheduled refresh."],
-      ["Analytical grain", "Every coverage figure is computed on canonical site × sector × reporting-period cells, never on raw records — a site reported by both Kobo and ZiteManager counts once. Cell status: any confirmed Yes → Covered; else any explicit No → Not covered; else Unknown."],
+      ["Data sources", "CCCM Cluster Service Mapping Tool submissions plus the cluster's service-provider directory records, merged into one record set (each record is tagged with its source; a Data source filter allows combined or per-source views). Data refreshes from the sources on load, cached server-side for 5 minutes, with a daily scheduled refresh."],
+      ["Analytical grain", "Every coverage figure is computed on canonical site × sector × reporting-period cells, never on raw records — a site reported by both sources counts once. Cell status: any confirmed Yes → Covered; else any explicit No → Not covered; else Unknown."],
       ["Source conflicts", "When one record confirms a service and another explicitly denies it for the same site-sector-period, the cell resolves to Covered (provider presence is direct evidence) but is flagged as a conflict, both values are retained, and the count is shown in the Data Quality section. Nothing is silently overwritten."],
       ["Reporting period", "Calendar months (YYYY-MM), derived from each submission's date. The dashboard is updated monthly."],
       ["Site denominator", "The CCCM master site list (permanent CCCM Site IDs) is the authoritative site reference. The reporting-completeness rate uses the FULL master list as denominator — no per-round 'expected to report' scope is configured yet, so that rate understates completeness where only part of the list was asked to report."],
@@ -185,7 +185,7 @@ const TRANSLATIONS = {
 
     // Data-quality KPIs
     kpi_dq_conflicts: "Source conflicts (site-sector cells)",
-    tip_dq_conflicts: "Site-sector-period cells where one record confirms the service (Yes) and another explicitly denies it (No) — often Kobo vs ZiteManager disagreement. Unit: canonical site×sector×period cells, not raw records. The cell resolves to Yes (provider presence is direct evidence) but both values are retained.",
+    tip_dq_conflicts: "Site-sector-period cells where one record confirms the service (Yes) and another explicitly denies it (No) — often the two data sources disagreeing. Unit: canonical site×sector×period cells, not raw records. The cell resolves to Yes (provider presence is direct evidence) but both values are retained.",
     kpi_dq_passed: "Records passing all checks",
     kpi_dq_critical: "Records with critical issues",
     kpi_dq_unmatched: "Unmatched site records",
@@ -197,7 +197,7 @@ const TRANSLATIONS = {
     tip_dq_unmatched: "Records whose site could not be matched to the CCCM master site list — need manual review.",
     tip_dq_missing_coords: "Records with no usable GPS coordinates.",
     tip_dq_stale: "Records whose latest update is older than 180 days.",
-    tip_dq_sources: "Independent systems feeding this dashboard (KoboToolbox, IOM ZiteManager).",
+    tip_dq_sources: "Independent record streams feeding this dashboard (the CCCM Service Mapping Tool and the cluster's service-provider directory).",
 
     // Insights
     insight_highest: "{sector} has the highest coverage at {pct}% of assessed sites.",
@@ -340,8 +340,8 @@ const TRANSLATIONS = {
     meth_title: "Habka shaqada iyo qeexitaannada tilmaamayaasha",
     meth_updated: "Cusboonaysiintii u dambaysay ee habka shaqada: 2026-07-18.",
     methodology: [
-      ["Ilaha xogta", "Warbixinnada khariidaynta adeegyada ee KoboToolbox iyo diiwaannada adeeg-bixiyeyaasha ee IOM ZiteManager, oo la isku daray hal xog-urur (diiwaan kastaa wuxuu wataa calaamadda ishiisa; shaandhada Isha xogta waxay oggolaataa aragtiyo Isku-dar/Kobo/ZiteManager). Xogta waxaa laga soo cusboonaysiiyaa ilaha marka la furo, iyadoo server-ka lagu kaydiyo 5 daqiiqo, laguna daro cusboonaysiin maalinle ah oo la qorsheeyay."],
-      ["Halbeegga falanqaynta", "Tiro kasta oo daboolka ah waxaa lagu xisaabiyaa unugyada goob × qayb × xilli, weligeed diiwaannada ceyriin — goob ay soo sheegeen Kobo iyo ZiteManager labaduba waxay tirsataa hal mar. Xaaladda unugga: Haa la xaqiijiyay → La daboolay; haddii kale Maya cad → Aan la daboolin; haddii kale Lama yaqaan."],
+      ["Ilaha xogta", "Warbixinnada Qalabka Khariidaynta Adeegyada ee Cluster-ka CCCM iyo diiwaannada adeeg-bixiyeyaasha ee cluster-ka, oo la isku daray hal xog-urur (diiwaan kastaa wuxuu wataa calaamadda ishiisa; shaandhada Isha xogta waxay oggolaataa aragtiyo isku-dar ama il-gaar ah). Xogta waxaa laga soo cusboonaysiiyaa ilaha marka la furo, iyadoo server-ka lagu kaydiyo 5 daqiiqo, laguna daro cusboonaysiin maalinle ah oo la qorsheeyay."],
+      ["Halbeegga falanqaynta", "Tiro kasta oo daboolka ah waxaa lagu xisaabiyaa unugyada goob × qayb × xilli, weligeed diiwaannada ceyriin — goob ay soo sheegeen labada il labaduba waxay tirsataa hal mar. Xaaladda unugga: Haa la xaqiijiyay → La daboolay; haddii kale Maya cad → Aan la daboolin; haddii kale Lama yaqaan."],
       ["Iskahorimaadka ilaha", "Marka diiwaan uu xaqiijiyo adeegga mid kalena uu si cad u diido isla goob-qayb-xilli, unuggu wuxuu u xallilmaa La daboolay (joogitaanka bixiyuhu waa caddayn toos ah) laakiin waxaa lagu calaamadeeyaa iskahorimaad, labada qiimena waa la haynayaa, tiradana waxaa lagu muujiyaa qaybta Tayada Xogta. Waxba si aamusan looma beddelo."],
       ["Xilliga warbixinta", "Bilo taariikheed (SSSS-BB), oo laga soo qaatay taariikhda warbixin kasta. Dashboard-ka waxaa la cusboonaysiiyaa bil kasta."],
       ["Tirokoobka goobaha (denominator)", "Liiska rasmiga ah ee goobaha CCCM (Aqoonsiyada joogtada ah ee CCCM) ayaa ah tixraaca rasmiga ah. Heerka dhamaystirka warbixintu wuxuu isticmaalaa liiska OO DHAN — wali lama qaabeynin cabbir 'la filayo inay warbixiyaan' oo xilli kasta ah, sidaas darteed heerkaasi wuu hoos dhigaa dhamaystirka marka qayb kaliya oo liiska ah la weydiistay inay warbixiso."],
@@ -444,7 +444,7 @@ const TRANSLATIONS = {
     download_methodology: "Soo deji habka shaqada",
 
     kpi_dq_conflicts: "Iskahorimaad ilo (unug goob-qayb)",
-    tip_dq_conflicts: "Unugyada goob-qayb-xilli halkaas oo diiwaan uu xaqiijiyay adeegga (Haa) mid kalena uu si cad u diiday (Maya) — inta badan khilaaf u dhexeeya Kobo iyo ZiteManager. Halbeeggu waa unugyada goob×qayb×xilli, ma aha diiwaannada ceyriin. Unuggu wuxuu u xallilmaa Haa, labada qiimena waa la haynayaa.",
+    tip_dq_conflicts: "Unugyada goob-qayb-xilli halkaas oo diiwaan uu xaqiijiyay adeegga (Haa) mid kalena uu si cad u diiday (Maya) — inta badan khilaaf u dhexeeya labada il ee xogta. Halbeeggu waa unugyada goob×qayb×xilli, ma aha diiwaannada ceyriin. Unuggu wuxuu u xallilmaa Haa, labada qiimena waa la haynayaa.",
     kpi_dq_passed: "Diiwaannada dhammaan hubinta gudbay",
     kpi_dq_critical: "Diiwaannada leh arrimo halis ah",
     kpi_dq_unmatched: "Diiwaannada goob aan la isku xirin",
@@ -456,7 +456,7 @@ const TRANSLATIONS = {
     tip_dq_unmatched: "Diiwaannada goobtooda aan lagu heli karin liiska rasmiga ah ee goobaha CCCM — waxay u baahan yihiin dib-u-eegis gacanta ah.",
     tip_dq_missing_coords: "Diiwaannada aan lahayn iskuduwayaal GPS oo la isticmaali karo.",
     tip_dq_stale: "Diiwaannada cusboonaysiintoodii u dambaysay ay ka weyn tahay 180 maalmood.",
-    tip_dq_sources: "Nidaamyada madaxa-bannaan ee xogta keena dashboard-kan (KoboToolbox, IOM ZiteManager).",
+    tip_dq_sources: "Durdurrada diiwaannada ee madaxa-bannaan ee xogta keena dashboard-kan (Qalabka Khariidaynta Adeegyada ee CCCM iyo diiwaanka adeeg-bixiyeyaasha cluster-ka).",
 
     insight_highest: "{sector} ayaa leh daboolka ugu sarreeya oo ah {pct}% goobaha la qiimeeyay.",
     insight_highest_full: "Daboolka {sector} waa {pct}. {assessed} goobood oo la qiimeeyay, {covered} waa la daboolay, {notCovered} si cad looma daboolin, {unknown}na xaaladdoodu ma cadda.",
