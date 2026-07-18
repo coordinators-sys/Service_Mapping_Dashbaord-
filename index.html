@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="assets/css/dashboard.css?v=18" />
+  <link rel="stylesheet" href="assets/css/dashboard.css?v=19" />
 </head>
 <body>
   <header class="app-header">
@@ -251,12 +251,31 @@
         <div class="card-header sites-table-header">
           <h2><span id="sites-table-count">0 assessed sites</span></h2>
           <input type="text" id="sites-table-search" class="search-input" data-i18n-placeholder="search_placeholder" placeholder="Search district, site, catchment or agency…" />
+          <select id="sites-table-status-filter" class="control-select" aria-label="Data status filter">
+            <option value="hide_unresolved" selected data-i18n="status_filter_default">Matched sites only</option>
+            <option value="all" data-i18n="status_filter_all">All sites</option>
+            <option value="review" data-i18n="status_filter_review">Needs review only</option>
+            <option value="unmatched" data-i18n="status_filter_unmatched">Unmatched only</option>
+          </select>
           <select id="sites-table-pagesize" class="control-select" aria-label="Rows per page">
             <option value="25" selected>25</option>
             <option value="50">50</option>
             <option value="100">100</option>
           </select>
           <button class="btn btn-primary" id="btn-export-csv" data-i18n="export_csv">Export CSV</button>
+        </div>
+        <!-- Data-status explainer: makes the Matched / Needs review / Unmatched
+             and Unknown numbers self-answering for anyone viewing the published
+             dashboard. Counts are filled by renderSiteTable. -->
+        <div class="data-status-explainer" id="data-status-explainer">
+          <div class="dse-counts" id="dse-counts"></div>
+          <button type="button" class="dse-toggle" id="dse-toggle" aria-expanded="false" data-i18n="dse_learn_more">What do these mean?</button>
+          <div class="dse-detail hidden" id="dse-detail">
+            <p><span class="badge badge-success" data-i18n="badge_matched_id">Matched by Site ID</span> <span data-i18n="dse_matched">— the record is linked to an official site on the CCCM master list by its permanent Site ID (or exact name). Trust these; they feed the coverage figures directly.</span></p>
+            <p><span class="badge badge-warning" data-i18n="badge_needs_review">Needs review</span> <span data-i18n="dse_review">— linked only by an approximate site name. Probably correct, but a person should confirm it. Still counted, and flagged for cleanup.</span></p>
+            <p><span class="badge badge-critical" data-i18n="badge_unmatched">Unmatched</span> <span data-i18n="dse_unmatched">— could not be linked to any master-list site. Usually the form carried no Site ID (or a code from a different tool), or the site is not yet registered in the master list. These are shown for transparency and excluded from master-list coverage counts.</span></p>
+            <p><strong data-i18n="dse_unknown_title">"Unknown" sectors</strong> <span data-i18n="dse_unknown">— a sector left blank on the form. It is never counted as "not covered"; it is excluded from the coverage-rate denominator so a blank can't understate coverage.</span></p>
+          </div>
         </div>
         <div class="table-scroll">
           <table class="data-table" id="sites-table">
@@ -320,14 +339,14 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF" crossorigin="anonymous"></script>
-  <script src="assets/js/translations.js?v=18"></script>
-  <script src="assets/js/multiselect.js?v=18"></script>
-  <script src="assets/js/filters.js?v=18"></script>
-  <script src="assets/js/semantic.js?v=18"></script>
-  <script src="assets/js/charts.js?v=18"></script>
-  <script src="assets/js/maps.js?v=18"></script>
-  <script src="assets/js/tables.js?v=18"></script>
-  <script src="assets/js/export.js?v=18"></script>
-  <script src="assets/js/app.js?v=18"></script>
+  <script src="assets/js/translations.js?v=19"></script>
+  <script src="assets/js/multiselect.js?v=19"></script>
+  <script src="assets/js/filters.js?v=19"></script>
+  <script src="assets/js/semantic.js?v=19"></script>
+  <script src="assets/js/charts.js?v=19"></script>
+  <script src="assets/js/maps.js?v=19"></script>
+  <script src="assets/js/tables.js?v=19"></script>
+  <script src="assets/js/export.js?v=19"></script>
+  <script src="assets/js/app.js?v=19"></script>
 </body>
 </html>

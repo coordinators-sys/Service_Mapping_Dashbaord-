@@ -17,6 +17,10 @@ __pycache__/
 /Masterlist/
 /Somali Maps/
 
+# Generated data-quality worklists (point-in-time snapshots for the cluster,
+# regenerated on demand — not part of the app)
+/reports/
+
 # Local clutter
 *.log
 .claude/

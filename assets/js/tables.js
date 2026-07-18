@@ -14,6 +14,23 @@ let tablePageSize = 25;
 let tableSortField = "region";
 let tableSortDir = 1;
 let tablePage = 1;
+// Data-status filter for the sites table. Default hides unmatched + needs-review
+// so the published table opens on trustworthy rows only — the hidden count is
+// always shown, and the dropdown lets anyone reveal them. Never deletes data.
+let tableStatusFilter = "hide_unresolved";
+
+// Which match statuses count as "resolved/trustworthy" vs review vs unmatched.
+const STATUS_GROUP = {
+  matched_by_site_code: "matched",
+  matched_by_official_name: "matched",
+  matched_by_alternative_name: "matched",
+  matched_by_gps: "matched",
+  probable_name_match: "review",
+  unmatched: "unmatched",
+};
+function statusGroup(matchStatus) {
+  return STATUS_GROUP[matchStatus] || "review";
+}
 
 // Values are [translation key, badge class]; label resolved via t() at render
 // time so badges follow the interface language.
@@ -62,13 +79,28 @@ function buildSiteTableRows(records) {
 
 function renderSiteTable(records) {
   const allRows = buildSiteTableRows(records);
-  const search = (document.getElementById("sites-table-search").value || "").toLowerCase().trim();
-  const rows = search
-    ? allRows.filter((r) =>
+
+  // Match-status tally over the CURRENT filter — powers the explainer counts
+  // and the "hidden" note, so the numbers always reflect what's on screen.
+  const tally = { matched: 0, review: 0, unmatched: 0 };
+  allRows.forEach((r) => { tally[statusGroup(r.matchStatus)]++; });
+  renderDataStatusExplainer(tally);
+
+  const searchTerm = (document.getElementById("sites-table-search").value || "").toLowerCase().trim();
+  const statusRows = allRows.filter((r) => {
+    const g = statusGroup(r.matchStatus);
+    if (tableStatusFilter === "all") return true;
+    if (tableStatusFilter === "hide_unresolved") return g === "matched";
+    if (tableStatusFilter === "review") return g === "review";
+    if (tableStatusFilter === "unmatched") return g === "unmatched";
+    return true;
+  });
+  const rows = searchTerm
+    ? statusRows.filter((r) =>
         [r.region, r.district, r.siteName, r.catchment, r.siteKey, ...Array.from(r.agencies)]
-          .filter(Boolean).join(" ").toLowerCase().includes(search)
+          .filter(Boolean).join(" ").toLowerCase().includes(searchTerm)
       )
-    : allRows;
+    : statusRows;
 
   rows.sort((a, b) => {
     const va = a[tableSortField], vb = b[tableSortField];
@@ -112,6 +144,37 @@ function renderSiteTable(records) {
   renderTablePagination(totalPages);
 }
 
+// Fills the data-status explainer strip above the table: a count chip per
+// group and, when rows are hidden by the status filter, a plain-language note
+// with a one-click "show all". Keeps the published table honest — nothing is
+// silently dropped.
+function renderDataStatusExplainer(tally) {
+  const el = document.getElementById("dse-counts");
+  if (!el) return;
+  const total = tally.matched + tally.review + tally.unmatched;
+  const chips = [
+    ["matched", tally.matched, "badge-success", t("dse_chip_matched")],
+    ["review", tally.review, "badge-warning", t("dse_chip_review")],
+    ["unmatched", tally.unmatched, "badge-critical", t("dse_chip_unmatched")],
+  ]
+    .map(([, n, cls, label]) => `<span class="dse-chip ${cls}"><strong>${n.toLocaleString()}</strong> ${label}</span>`)
+    .join("");
+  const hidden = tableStatusFilter === "hide_unresolved" ? tally.review + tally.unmatched : 0;
+  const note = hidden
+    ? `<span class="dse-hidden-note">${t("dse_hidden", { n: hidden.toLocaleString() })}
+        <button type="button" class="dse-showall" id="dse-showall">${t("dse_show_all")}</button></span>`
+    : "";
+  el.innerHTML = `<span class="dse-total">${t("dse_of_total", { n: total.toLocaleString() })}</span>${chips}${note}`;
+  const showAll = document.getElementById("dse-showall");
+  if (showAll) showAll.addEventListener("click", () => {
+    tableStatusFilter = "all";
+    const sel = document.getElementById("sites-table-status-filter");
+    if (sel) sel.value = "all";
+    tablePage = 1;
+    renderSiteTable(filtered());
+  });
+}
+
 function renderTablePagination(totalPages) {
   const container = document.getElementById("sites-table-pagination");
   if (totalPages <= 1) { container.innerHTML = ""; return; }
@@ -146,6 +209,18 @@ function setupTableInteractions() {
     tablePageSize = parseInt(pageSize.value, 10) || 25;
     tablePage = 1;
     renderSiteTable(filtered());
+  });
+  const statusFilter = document.getElementById("sites-table-status-filter");
+  if (statusFilter) statusFilter.addEventListener("change", () => {
+    tableStatusFilter = statusFilter.value;
+    tablePage = 1;
+    renderSiteTable(filtered());
+  });
+  const dseToggle = document.getElementById("dse-toggle");
+  if (dseToggle) dseToggle.addEventListener("click", () => {
+    const detail = document.getElementById("dse-detail");
+    const open = detail.classList.toggle("hidden") === false;
+    dseToggle.setAttribute("aria-expanded", String(open));
   });
   document.querySelectorAll("#sites-table th[data-sort]").forEach((th) => {
     th.addEventListener("click", () => {
