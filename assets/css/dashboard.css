@@ -734,3 +734,36 @@ body {
 .cell-sector img { border-radius: 3px; }
 .cell-sector-missing img { filter: grayscale(0.3); opacity: 0.85; outline: 1px solid var(--critical); outline-offset: 1px; border-radius: 3px; }
 .priority-missing-icons { max-width: 140px; line-height: 1.6; }
+
+/* --- Cluster gap profiles ------------------------------------------------ */
+.section-intro { color: var(--text-muted); font-size: 0.85rem; margin: 0 0 12px; }
+.gap-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+.gap-card {
+  display: flex; align-items: center; gap: 14px;
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px; background: var(--card-bg);
+}
+.gap-card-main { flex: 1; min-width: 0; }
+.gap-card-icon { width: 30px; height: 30px; display: block; margin-bottom: 6px; }
+.gap-card h3 { margin: 0 0 4px; font-size: 0.95rem; }
+.gap-card-figures { font-size: 0.85rem; margin-bottom: 4px; }
+.gap-avail { color: #3A8D68; font-weight: 600; }
+.gap-gap { color: #D9534F; font-weight: 600; }
+.gap-card-providers, .gap-card-widest { font-size: 0.78rem; color: var(--text-muted); }
+.gap-card-widest { margin-top: 3px; }
+.gap-card-widest strong { color: inherit; }
+.gap-donut {
+  flex: 0 0 auto; width: 74px; height: 74px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.gap-donut span {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: var(--card-bg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 700;
+}
+.gap-donut-empty { background: var(--border); }

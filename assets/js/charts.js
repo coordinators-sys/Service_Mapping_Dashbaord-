@@ -1081,3 +1081,73 @@ function renderAgencyMatrix(records) {
   });
 }
 
+
+// ---------------------------------------------------------------------------
+// Cluster gap profiles: one compact card per sector — availability donut,
+// provider agencies, and the districts with the widest gaps. Reads the SAME
+// semantic cells as every coverage chart, so the numbers always agree.
+function renderGapProfiles(records) {
+  const grid = document.getElementById("gap-profile-grid");
+  if (!grid) return;
+
+  const cells = siteSectorCells(records);
+  const statusMap = siteSectorStatusMap(cells);
+  const coverage = sectorCoverageFromCells(cells, SECTORS);
+
+  // site -> district (first record wins; records for one site share a district)
+  const siteDistrict = new Map();
+  // sector -> agency -> Set(site) for provider ranking
+  const providers = new Map(SECTORS.map((s) => [s, new Map()]));
+  records.forEach((r) => {
+    const key = siteKey(r);
+    if (!key) return;
+    if (r.district && !siteDistrict.has(key)) siteDistrict.set(key, r.district);
+    if (r.agency && r.coverageStatus === "Yes" && providers.has(r.sector)) {
+      const byAgency = providers.get(r.sector);
+      if (!byAgency.has(r.agency)) byAgency.set(r.agency, new Set());
+      byAgency.get(r.agency).add(key);
+    }
+  });
+
+  grid.innerHTML = coverage.map((cov) => {
+    const sector = cov.sector;
+    // widest gaps: districts ranked by sites whose canonical status is No
+    const gapByDistrict = new Map();
+    statusMap.forEach((statuses, site) => {
+      if (statuses[sector] !== "No") return;
+      const district = siteDistrict.get(site);
+      if (!district) return;
+      gapByDistrict.set(district, (gapByDistrict.get(district) || 0) + 1);
+    });
+    const widest = Array.from(gapByDistrict.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+    const byAgency = providers.get(sector) || new Map();
+    const top = Array.from(byAgency.entries()).sort((a, b) => b[1].size - a[1].size).slice(0, 3);
+
+    const reportable = cov.covered + cov.notCovered;
+    const pct = reportable ? Math.round((cov.covered / reportable) * 100) : null;
+    const icon = SECTOR_ICONS[sector]
+      ? `<img class="sector-icon gap-card-icon" src="${SECTOR_ICONS[sector]}?v=${ICON_VERSION}" alt="" />`
+      : "";
+    const donut = pct === null
+      ? `<div class="gap-donut gap-donut-empty"><span>—</span></div>`
+      : `<div class="gap-donut" style="background:conic-gradient(${COLORS.success} 0 ${pct}%, ${COLORS.critical} ${pct}% 100%)"><span>${pct}%</span></div>`;
+
+    return `
+      <div class="gap-card">
+        <div class="gap-card-main">
+          ${icon}
+          <h3>${escapeHtml(sector)}</h3>
+          <div class="gap-card-figures">
+            <span class="gap-avail">${cov.covered.toLocaleString()} ${t("gp_available")}</span> ·
+            <span class="gap-gap">${cov.notCovered.toLocaleString()} ${t("gp_gap")}</span>${pct === null ? "" : ` · ${pct}%`}
+          </div>
+          <div class="gap-card-providers">${t("gp_providers", { n: byAgency.size })}${top.length ? ` · ${t("gp_top")}: ${top.map(([a]) => escapeHtml(a)).join(", ")}` : ""}</div>
+          <div class="gap-card-widest"><strong>${t("gp_widest")}:</strong> ${
+            widest.length ? widest.map(([d, n]) => `${escapeHtml(d)} (${n})`).join(", ") : t("gp_no_gaps")
+          }</div>
+        </div>
+        ${donut}
+      </div>`;
+  }).join("");
+}

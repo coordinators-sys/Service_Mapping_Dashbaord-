@@ -6,6 +6,7 @@ function renderAll() {
   const records = filtered();
   renderCompleteness(records);
   renderOverview(records);
+  renderGapProfiles(records);
   renderCoverage(records);
   renderAgencies(records);
   renderAgencyMatrix(records);
