@@ -149,6 +149,41 @@ Chart.register(barValueLabels);
 const PCT_LABEL = { format: (v) => formatPct(v) };
 const COUNT_LABEL = { format: (v) => formatNumber(v) };
 
+// Preloaded <img> objects for drawing sector icons onto chart canvases.
+const _sectorIconImg = {};
+(function preloadSectorIcons() {
+  Object.entries(SECTOR_ICONS).forEach(([sector, src]) => {
+    const img = new Image();
+    img.src = `${src}?v=${ICON_VERSION}`;
+    _sectorIconImg[sector] = img;
+  });
+})();
+
+// Draws the sector icon at the start (left, inside) of each bar on
+// SECTOR-indexed horizontal bar charts. Opt in with
+// options.plugins.sectorBarIcons = true. Charts whose axis is periods or
+// districts don't get this (a sector icon there would be meaningless).
+const sectorBarIcons = {
+  id: "sectorBarIcons",
+  afterDatasetsDraw(chart) {
+    const raw = chart.config && chart.config.options && chart.config.options.plugins;
+    if (!raw || !raw.sectorBarIcons) return;
+    const labels = chart.data.labels || [];
+    const meta = chart.getDatasetMeta(0);
+    const { ctx } = chart;
+    const size = 16;
+    meta.data.forEach((el, i) => {
+      const img = _sectorIconImg[labels[i]];
+      if (!img || !img.complete || !img.naturalWidth) return;
+      const props = el.getProps(["base", "y"], true);
+      ctx.save();
+      ctx.drawImage(img, props.base + 3, props.y - size / 2, size, size);
+      ctx.restore();
+    });
+  },
+};
+Chart.register(sectorBarIcons);
+
 function destroyChart(id) {
   const canvas = document.getElementById(id);
   const existing = canvas && Chart.getChart(canvas);
@@ -394,6 +429,7 @@ function renderSectorBarChart(records, sortMode) {
       plugins: {
         legend: { display: false },
         barValues: PCT_LABEL,
+        sectorBarIcons: true,
         tooltip: {
           callbacks: {
             label: (ctx2) => {
@@ -472,7 +508,7 @@ function renderAgenciesBySectorChart(records) {
     options: {
       indexAxis: "y", responsive: true, maintainAspectRatio: false,
       layout: { padding: { right: 30 } },
-      plugins: { legend: { display: false }, barValues: COUNT_LABEL },
+      plugins: { legend: { display: false }, barValues: COUNT_LABEL, sectorBarIcons: true },
       onClick: (evt, elements) => {
         if (!elements.length) return;
         toggleFilterValue("sector", data[elements[0].index].sector, evt.native && (evt.native.ctrlKey || evt.native.metaKey));
@@ -498,7 +534,7 @@ function renderServiceAvailabilityChart(records) {
     options: {
       indexAxis: "y", responsive: true, maintainAspectRatio: false,
       scales: { x: { stacked: true }, y: { stacked: true } },
-      plugins: { barValues: { format: (v) => v.toLocaleString(), mode: "center" } },
+      plugins: { barValues: { format: (v) => v.toLocaleString(), mode: "center" }, sectorBarIcons: true },
       onClick: (evt, elements) => {
         if (!elements.length) return;
         toggleFilterValue("sector", data[elements[0].index].sector, evt.native && (evt.native.ctrlKey || evt.native.metaKey));

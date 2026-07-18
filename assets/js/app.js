@@ -29,8 +29,9 @@ function showApiError(message) {
 function updateHeaderInfo() {
   const records = filtered();
   const assessedSites = new Set(records.map(siteKey).filter(Boolean)).size;
-  const periods = Array.from(new Set(state.all.map((r) => r.reportingPeriod).filter(Boolean))).sort();
-  const currentPeriod = periods.length ? periods[periods.length - 1] : "—";
+  // Header period ALWAYS matches the period filter: the selected period(s)
+  // when filtered, "All periods" when not — so the two can never disagree.
+  const currentPeriod = filters.period.size ? Array.from(filters.period).sort().join(", ") : t("all_periods");
   const lastSync = state.generatedAt ? new Date(state.generatedAt).toLocaleString() : t("header_never");
   document.getElementById("header-info-line").textContent = t("header_info", {
     period: currentPeriod,
@@ -69,14 +70,9 @@ async function loadData() {
     state.all = [];
   } finally {
     setLoading(false);
-    // Default the period filter to the latest reporting month so the header
-    // and filters always show the SAME period on first load (users can still
-    // clear it to see all periods; the trend chart is period-unfiltered by
-    // design so it keeps its full history either way).
-    if (!filters.period.size && state.all.length) {
-      const periods = Array.from(new Set(state.all.map((r) => r.reportingPeriod).filter(Boolean))).sort();
-      if (periods.length) filters.period.add(periods[periods.length - 1]);
-    }
+    // Load unfiltered by default (owner preference): show all reporting
+    // periods combined. The header reflects the actual period-filter state so
+    // header and filter never disagree — see updateHeaderInfo.
     populateInitialFilterOptions();
     applyFilters();
   }
