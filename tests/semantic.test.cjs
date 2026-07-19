@@ -144,3 +144,50 @@ test("siteSectorStatusMap agrees with sectorCoverageFromCells site-for-site", ()
   assert.strictEqual(covered, wash.covered);
   assert.strictEqual(notCovered, wash.notCovered);
 });
+
+test("officialCells keeps only matched cells; partition reconciles to the total", () => {
+  const cells = buildSiteSectorStatus([
+    rec({ matchedSiteCode: "A", matchStatus: "matched_by_site_code", coverageStatus: "Yes" }),
+    rec({ matchedSiteCode: "B", matchStatus: "probable_name_match", coverageStatus: "Yes" }),
+    rec({ matchedSiteCode: null, siteCodeRaw: "RAW-9", matchStatus: "unmatched", coverageStatus: "No" }),
+  ]);
+  const official = semantic.officialCells(cells);
+  assert.strictEqual(official.length, 1);
+  assert.strictEqual(official[0].site, "A");
+  // matched + needs_review + unmatched always equals the total cell count
+  const groups = { matched: 0, needs_review: 0, unmatched: 0 };
+  cells.forEach((c) => { groups[c.matchGroup] += 1; });
+  assert.strictEqual(groups.matched + groups.needs_review + groups.unmatched, cells.length);
+});
+
+test("a cell is matched if ANY contributing record is confidently matched", () => {
+  const cells = buildSiteSectorStatus([
+    rec({ dataSource: "kobo", matchStatus: "probable_name_match", coverageStatus: "No" }),
+    rec({ dataSource: "zitemanager", matchStatus: "matched_by_site_code", coverageStatus: "Yes" }),
+  ]);
+  assert.strictEqual(cells.length, 1);
+  assert.strictEqual(cells[0].matchGroup, "matched");
+});
+
+test("latestStatusCells keeps exactly one cell per site-sector: the newest period", () => {
+  const cells = buildSiteSectorStatus([
+    rec({ reportingPeriod: "2026-01", coverageStatus: "Yes" }),
+    rec({ reportingPeriod: "2026-06", coverageStatus: "No" }),
+    rec({ matchedSiteCode: "S2", reportingPeriod: "2026-03", coverageStatus: "Yes" }),
+  ]);
+  const latest = semantic.latestStatusCells(cells);
+  assert.strictEqual(latest.length, 2); // one per site-sector, not per period
+  const s1 = latest.find((c) => c.site === "S1");
+  assert.strictEqual(s1.period, "2026-06");
+  assert.strictEqual(s1.status, "No"); // the LATEST status wins, not the best
+});
+
+test("all-periods official coverage counts a multi-month site once (no double count)", () => {
+  const cells = buildSiteSectorStatus([
+    rec({ reportingPeriod: "2026-01", coverageStatus: "Yes" }),
+    rec({ reportingPeriod: "2026-02", coverageStatus: "Yes" }),
+    rec({ reportingPeriod: "2026-03", coverageStatus: "Yes" }),
+  ]);
+  const [wash] = sectorCoverageFromCells(semantic.latestStatusCells(semantic.officialCells(cells)), ["WASH"]);
+  assert.strictEqual(wash.covered, 1); // was 3 under the per-period grain
+});

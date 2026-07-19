@@ -14,6 +14,7 @@ function renderAll() {
   renderCatchments(records);
   renderGeography(records);
   renderSiteTable(records);
+  renderDataQuality(records);
   updateHeaderInfo();
 }
 
@@ -29,7 +30,9 @@ function showApiError(message) {
 
 function updateHeaderInfo() {
   const records = filtered();
-  const assessedSites = new Set(records.map(siteKey).filter(Boolean)).size;
+  // Same official population as the headline KPI (verified matched sites
+  // with >=1 assessed sector) so the header can never disagree with it.
+  const assessedSites = computeSiteGapProfiles(records).filter((s) => s.assessed).length;
   // Header period ALWAYS matches the period filter: the selected period(s)
   // when filtered, "All periods" when not — so the two can never disagree.
   const currentPeriod = filters.period.size ? Array.from(filters.period).sort().join(", ") : t("all_periods");
@@ -71,16 +74,40 @@ async function loadData() {
     state.all = [];
   } finally {
     setLoading(false);
-    // Load unfiltered by default (owner preference): show all reporting
-    // periods combined. The header reflects the actual period-filter state so
-    // header and filter never disagree — see updateHeaderInfo.
+    // Default to the LATEST COMPLETED reporting month: an "All periods" load
+    // mixes reporting rounds, and (before the latest-status collapse) counted
+    // a site once per month it reported. All-period views remain one click
+    // away (clear the period chip) and now use latest-site-status semantics.
+    defaultPeriodSelection();
     populateInitialFilterOptions();
+    syncSlicerSelections();
     applyFilters();
   }
 }
 
 function populateInitialFilterOptions() {
   refreshSlicerOptions();
+}
+
+function defaultPeriodSelection() {
+  const counts = new Map();
+  state.all.forEach((r) => {
+    if (r.reportingPeriod) counts.set(r.reportingPeriod, (counts.get(r.reportingPeriod) || 0) + 1);
+  });
+  const periods = Array.from(counts.keys()).sort();
+  if (!periods.length) return;
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  // Latest COMPLETED month (the in-progress month is not a finished round)
+  // that also carries SUBSTANTIAL reporting — a thin partial month (e.g. a
+  // handful of late submissions) would land visitors on a near-empty view.
+  const maxCount = Math.max(...counts.values());
+  const threshold = Math.max(100, maxCount * 0.1);
+  const candidates = periods.filter((p) => p !== currentMonth && counts.get(p) >= threshold);
+  const pick = candidates.length
+    ? candidates[candidates.length - 1]
+    : periods.reduce((a, b) => (counts.get(b) >= counts.get(a) ? b : a)); // biggest round as fallback
+  filters.period = new Set([pick]);
 }
 
 // Methodology wording lives in the translation dictionaries (EN + SO) so it

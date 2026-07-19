@@ -78,7 +78,9 @@ function sitePointsFromRecords(records) {
   // Marker COLOR is driven by canonical site×sector status (semantic layer,
   // Yes>No>Unknown), so a site's map color always matches the coverage
   // charts. Coordinates, agencies and freshness stay record-level facts.
-  const statusMap = siteSectorStatusMap(siteSectorCells(records));
+  // Official population only: unverified (needs-review/unmatched) sites are
+  // never plotted on the public map.
+  const statusMap = siteSectorStatusMap(officialSiteSectorCells(records));
   const bySite = new Map();
   records.forEach((r) => {
     if (r.latitude == null || r.longitude == null) return;

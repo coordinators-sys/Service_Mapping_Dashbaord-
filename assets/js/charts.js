@@ -228,12 +228,31 @@ function siteSectorCells(records) {
   return cells;
 }
 
+// OFFICIAL KPI cells: matched sites only, and — unless the user has narrowed
+// to specific reporting period(s) — collapsed to each site×sector's LATEST
+// status so "All periods" never counts one site once per month it reported.
+// Every official figure (KPIs, coverage charts, availability, gap profiles,
+// priority gaps, catchments, map, insights) reads THIS; needs-review and
+// unmatched cells stay in the raw cell set for the Data Quality section.
+const _officialCache = new WeakMap();
+function officialSiteSectorCells(records) {
+  let cells = _officialCache.get(records);
+  if (!cells) {
+    cells = officialCells(siteSectorCells(records));
+    if (!filters.period.size) cells = latestStatusCells(cells);
+    _officialCache.set(records, cells);
+  }
+  return cells;
+}
+
 function computeSectorCoverage(records, sectors = SECTORS) {
-  return sectorCoverageFromCells(siteSectorCells(records), sectors);
+  return sectorCoverageFromCells(officialSiteSectorCells(records), sectors);
 }
 
 function computeCoverageTrend(records, sector) {
-  return coverageTrendFromCells(siteSectorCells(records), sector || null);
+  // Matched-only, but PER-PERIOD grain (a trend needs every period, so the
+  // latest-status collapse does not apply here).
+  return coverageTrendFromCells(officialCells(siteSectorCells(records)), sector || null);
 }
 
 function computeAgenciesBySector(records) {
@@ -274,7 +293,7 @@ function computeSiteGapProfiles(records) {
   // not an order-dependent per-record rollup — so gap counts reconcile with
   // the sector coverage charts. Site metadata (name/region/district/catchment)
   // is taken from the first record seen for each site.
-  const statusMap = siteSectorStatusMap(siteSectorCells(records));
+  const statusMap = siteSectorStatusMap(officialSiteSectorCells(records));
   const meta = new Map();
   records.forEach((r) => {
     const key = siteKey(r);
@@ -305,6 +324,9 @@ function computeSiteGapProfiles(records) {
       gapCount: gaps.length,
       unknownSectors,
       unknownCount: unknownSectors.length,
+      // assessed = at least one sector explicitly answered Yes or No —
+      // the SAME definition the sites table and map use.
+      assessed: SECTORS.some((s2) => statuses[s2] === "Yes" || statuses[s2] === "No"),
       noProvider,
       missingAllPriority,
       isCritical,
@@ -621,12 +643,15 @@ function kpiCard(id, value, label, tooltip, negative, delta) {
 }
 
 function renderOverview(records) {
-  const assessedSites = new Set(records.map(siteKey).filter(Boolean));
+  // OFFICIAL population: verified matched sites with >=1 assessed sector.
+  // The headline, every "x of N" KPI, the priority section and the site
+  // table's matched count all use this one definition, so they reconcile.
+  const allProfiles = computeSiteGapProfiles(records);
+  const siteProfiles = allProfiles.filter((s) => s.assessed);
   const activeAgencies = new Set(records.filter((r) => r.coverageStatus === "Yes" && r.agency).map((r) => r.agency));
   const regions = new Set(records.map((r) => r.region).filter(Boolean));
   const districts = new Set(records.map((r) => r.district).filter(Boolean));
-  const siteProfiles = computeSiteGapProfiles(records);
-  const assessed = assessedSites.size;
+  const assessed = siteProfiles.length;
   const confirmedGaps = siteProfiles.filter((s) => s.gapCount > 0).length;
   const criticalGaps = siteProfiles.filter((s) => s.isCritical).length;
   const unknownSites = siteProfiles.filter((s) => s.unknownCount > 0).length;
@@ -679,7 +704,7 @@ function renderSectorChips(sectorCoverage) {
 }
 
 function renderPriorityGaps(records) {
-  const siteProfiles = computeSiteGapProfiles(records);
+  const siteProfiles = computeSiteGapProfiles(records).filter((s) => s.assessed);
   const kpis = computePriorityKpis(siteProfiles);
   const assessed = siteProfiles.length;
 
@@ -808,7 +833,7 @@ function computeCatchmentAnalysis(records) {
   });
 
   // Roll canonical cells into their catchment.
-  for (const c of siteSectorCells(records)) {
+  for (const c of officialSiteSectorCells(records)) {
     const catchment = siteCatchment.get(c.site);
     if (!catchment) continue;
     const entry = byCatchment.get(catchment);
@@ -1093,7 +1118,7 @@ function renderGapProfiles(records) {
   const grid = document.getElementById("gap-profile-grid");
   if (!grid) return;
 
-  const cells = siteSectorCells(records);
+  const cells = officialSiteSectorCells(records);
   const statusMap = siteSectorStatusMap(cells);
   const coverage = sectorCoverageFromCells(cells, SECTORS);
 
@@ -1153,4 +1178,140 @@ function renderGapProfiles(records) {
         ${donut}
       </div>`;
   }).join("");
+}
+
+// ---------------------------------------------------------------------------
+// Data Quality & reconciliation. Everything received is accounted for:
+//   records received = matched + needs review + unmatched   (always)
+// Official KPIs use the matched population only; this section shows what was
+// excluded, why, and the review queue — nothing is silently deleted.
+const MATCH_METHOD_LABEL_KEYS = {
+  matched_by_site_code: "mm_site_id",
+  matched_by_official_name: "mm_exact_name",
+  matched_by_alternative_name: "mm_alias",
+  matched_by_gps: "mm_gps",
+  matched_by_name_gps: "mm_name_gps",
+  probable_name_match: "mm_fuzzy",
+  unmatched: "mm_none",
+  area_level_report: "mm_area",
+};
+function matchMethodLabel(matchStatus) {
+  return t(MATCH_METHOD_LABEL_KEYS[matchStatus] || "mm_none");
+}
+function matchGroupLabel(group) {
+  return t(group === "matched" ? "badge_matched" : group === "needs_review" ? "badge_needs_review" : "badge_unmatched");
+}
+function matchGroupBadgeClass(group) {
+  return group === "matched" ? "badge-success" : group === "needs_review" ? "badge-warning" : "badge-critical";
+}
+
+function renderDataQuality(records) {
+  const row = document.getElementById("dq-recon-row");
+  if (!row) return;
+
+  const byGroup = { matched: 0, needs_review: 0, unmatched: 0 };
+  let missingRef = 0, missingCoords = 0, outside = 0, stale = 0, areaReports = 0;
+  const now = Date.now();
+  records.forEach((r) => {
+    byGroup[matchGroupOf(r.matchStatus)] += 1;
+    if (r.matchStatus === "area_level_report") areaReports += 1;
+    if (!r.siteCodeRaw && !r.siteNameRaw && r.matchStatus !== "area_level_report") missingRef += 1;
+    if (r.latitude == null || r.longitude == null) missingCoords += 1;
+    else if (r.latitude < -2 || r.latitude > 12.5 || r.longitude < 40 || r.longitude > 52) outside += 1;
+    if (r.lastUpdated && (now - new Date(r.lastUpdated).getTime()) / 86400000 > 180) stale += 1;
+  });
+  const total = records.length;
+  const cells = siteSectorCells(records);
+  const official = officialCells(cells);
+  const quality = semanticQuality(cells);
+  const uniqueSites = new Set(cells.map((c) => c.site)).size;
+  const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
+
+  row.innerHTML = [
+    kpiCard("dq-total", formatNumber(total), t("dq_records_received"), t("tip_dq_total")),
+    kpiCard("dq-matched", `${formatNumber(byGroup.matched)} (${pct(byGroup.matched)}%)`, t("dq_matched_records"), t("tip_dq_matched")),
+    kpiCard("dq-review", `${formatNumber(byGroup.needs_review)} (${pct(byGroup.needs_review)}%)`, t("dq_review_records"), t("tip_dq_review"), byGroup.needs_review > 0),
+    kpiCard("dq-unmatched", `${formatNumber(byGroup.unmatched)} (${pct(byGroup.unmatched)}%)`, t("dq_unmatched_records"), t("tip_dq_unmatched2"), byGroup.unmatched > 0),
+    kpiCard("dq-sites", formatNumber(uniqueSites), t("dq_unique_sites"), t("tip_dq_sites")),
+    kpiCard("dq-cells", `${formatNumber(official.length)} / ${formatNumber(cells.length)}`, t("dq_official_cells"), t("tip_dq_cells")),
+  ].join("");
+  // The visible reconciliation identity — always exact by construction.
+  row.insertAdjacentHTML("afterend", "");
+  const note = document.getElementById("dq-recon-note") || (() => {
+    const el = document.createElement("p");
+    el.id = "dq-recon-note"; el.className = "completeness-note";
+    row.after(el); return el;
+  })();
+  note.textContent = t("dq_recon_identity", {
+    t: total.toLocaleString(), m: byGroup.matched.toLocaleString(),
+    r: byGroup.needs_review.toLocaleString(), u: byGroup.unmatched.toLocaleString(),
+  });
+
+  // Matching-method breakdown (records per detailed method)
+  const methodCounts = new Map();
+  records.forEach((r) => methodCounts.set(r.matchStatus, (methodCounts.get(r.matchStatus) || 0) + 1));
+  const maxMethod = Math.max(1, ...methodCounts.values());
+  document.getElementById("dq-method-breakdown").innerHTML = Array.from(methodCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([status, n]) => {
+      const group = matchGroupOf(status);
+      return `<div class="dq-bar-row">
+        <span class="dq-bar-label">${escapeHtml(matchMethodLabel(status))}
+          <span class="badge ${matchGroupBadgeClass(group)}">${escapeHtml(matchGroupLabel(group))}</span></span>
+        <span class="dq-bar-track"><span class="dq-bar-fill" style="width:${(n / maxMethod) * 100}%"></span></span>
+        <span class="dq-bar-value">${n.toLocaleString()}</span>
+      </div>`;
+    }).join("");
+
+  // Issue summary
+  const issues = [
+    ["iss_missing_ref", missingRef], ["iss_area_reports", areaReports],
+    ["iss_missing_coords", missingCoords], ["iss_outside", outside],
+    ["iss_conflicts", quality.conflicts], ["iss_multi_source", quality.multiSource],
+    ["iss_stale", stale],
+  ];
+  document.getElementById("dq-issue-summary").innerHTML = issues
+    .map(([key, n]) => `<div class="dq-issue-row"><span>${escapeHtml(t(key))}</span><strong>${n.toLocaleString()}</strong></div>`)
+    .join("");
+
+  // Review queue: distinct site references among needs-review + unmatched.
+  const queue = new Map();
+  records.forEach((r) => {
+    const group = matchGroupOf(r.matchStatus);
+    if (group === "matched" || r.matchStatus === "area_level_report") return;
+    const ref = r.siteCodeRaw || r.siteNameRaw;
+    if (!ref) return;
+    const prev = queue.get(ref);
+    if (!prev || (r.lastUpdated || "") > (prev.lastUpdated || "")) {
+      queue.set(ref, {
+        ref, name: r.siteNameRaw || r.siteCodeRaw, district: r.district,
+        suggested: r.matchedSiteName ? `${r.matchedSiteName} (${r.matchedSiteCode})` : "—",
+        group, method: r.matchStatus, source: r.dataSource, lastUpdated: r.lastUpdated,
+      });
+    }
+  });
+  const rows = Array.from(queue.values()).sort((a, b) => String(a.district).localeCompare(String(b.district)));
+  document.getElementById("dq-review-table-body").innerHTML = rows.map((q) => `
+    <tr>
+      <td>${escapeHtml(q.name || "")}</td>
+      <td>${escapeHtml(q.district || "")}</td>
+      <td>${escapeHtml(q.suggested)}</td>
+      <td><span class="badge ${matchGroupBadgeClass(q.group)}">${escapeHtml(matchGroupLabel(q.group))}</span></td>
+      <td>${escapeHtml(matchMethodLabel(q.method))}</td>
+      <td>${escapeHtml(sourceLabel(q.source))}</td>
+      <td>${escapeHtml((q.lastUpdated || "").slice(0, 10))}</td>
+    </tr>`).join("");
+
+  // Exclusion warning banner on the overview (hidden when nothing is excluded)
+  const banner = document.getElementById("dq-exclusion-banner");
+  if (banner) {
+    const excluded = byGroup.needs_review + byGroup.unmatched;
+    if (excluded > 0) {
+      banner.innerHTML = `${escapeHtml(t("dq_banner", { n: excluded.toLocaleString() }))}
+        <a href="#section-quality" class="dq-banner-link">${escapeHtml(t("dq_review_link"))}</a>`;
+      banner.classList.remove("hidden");
+    } else {
+      banner.classList.add("hidden");
+    }
+  }
 }

@@ -50,9 +50,13 @@ const MATCH_BADGE = {
 };
 
 function buildSiteTableRows(records) {
-  // Sector availability per site uses the canonical semantic status
-  // (Yes>No>Unknown), consistent with the coverage charts and map.
-  const statusMap = siteSectorStatusMap(siteSectorCells(records));
+  // Matched rows read the OFFICIAL cell set (same population/latest-status
+  // semantics as the KPIs, so the table can never disagree with them);
+  // needs-review/unmatched rows fall back to the raw cells, which is the only
+  // place their data exists.
+  const officialMap = siteSectorStatusMap(officialSiteSectorCells(records));
+  const rawMap = siteSectorStatusMap(siteSectorCells(records));
+  const statusMap = { get: (k) => officialMap.get(k) || rawMap.get(k) };
   const bySite = new Map();
   records.forEach((r) => {
     const key = siteKey(r);
@@ -67,6 +71,11 @@ function buildSiteTableRows(records) {
     const entry = bySite.get(key);
     if (r.agency && r.coverageStatus === "Yes") entry.agencies.add(r.agency);
     if (r.lastUpdated && (!entry.lastUpdated || r.lastUpdated > entry.lastUpdated)) entry.lastUpdated = r.lastUpdated;
+    // A site's status is its BEST across records (matched > review > unmatched)
+    // — the same rule the semantic layer applies to cells, so the table's
+    // matched count always equals the official KPI population.
+    const rank = { matched: 2, needs_review: 1, unmatched: 0 };
+    if (rank[matchGroupOf(r.matchStatus)] > rank[matchGroupOf(entry.matchStatus)]) entry.matchStatus = r.matchStatus;
   });
 
   return Array.from(bySite.values()).map((s) => {
@@ -89,17 +98,14 @@ function renderSiteTable(records) {
   // available/missing sectors) — they are excluded from the table rather than
   // shown as empty rows. They still count elsewhere (e.g. reporting
   // completeness), where "reported at all" is the relevant question.
-  // Unmatched sites are excluded from the public table entirely — they can't
-  // be tied to a master-list site, so listing them alongside real sites only
-  // raised questions. They remain in the CSV exports and the reconciliation
-  // worklist, and the "What do these mean?" panel explains the exclusion.
-  const allRows = buildSiteTableRows(records).filter(
-    (r) => r.coverageScore !== null && statusGroup(r.matchStatus) !== "unmatched"
-  );
+  // Assessed rows only (>=1 sector Yes/No). All three match-status groups are
+  // listed and COUNTED (nothing hidden without its count); the default view
+  // shows matched sites only, and needs-review/unmatched are one click away.
+  const allRows = buildSiteTableRows(records).filter((r) => r.coverageScore !== null);
 
   // Match-status tally over the CURRENT filter — powers the explainer counts
   // and the "hidden" note, so the numbers always reflect what's on screen.
-  const tally = { matched: 0, review: 0 };
+  const tally = { matched: 0, review: 0, unmatched: 0 };
   allRows.forEach((r) => { tally[statusGroup(r.matchStatus)]++; });
   renderDataStatusExplainer(tally);
 
@@ -109,6 +115,7 @@ function renderSiteTable(records) {
     if (tableStatusFilter === "all") return true;
     if (tableStatusFilter === "hide_unresolved") return g === "matched";
     if (tableStatusFilter === "review") return g === "review";
+    if (tableStatusFilter === "unmatched") return g === "unmatched";
     return true;
   });
   const rows = searchTerm
@@ -135,8 +142,12 @@ function renderSiteTable(records) {
 
   const tbody = document.getElementById("sites-table-body");
   tbody.innerHTML = pageRows.map((r) => {
-    const [badgeKey, badgeClass] = MATCH_BADGE[r.matchStatus] || ["badge_needs_review", "badge-warning"];
-    const badgeLabel = t(badgeKey);
+    const group = matchGroupOf(r.matchStatus);
+    const badgeClass = matchGroupBadgeClass(group);
+    // Public badge shows the simplified status; the detailed matching METHOD
+    // lives in the tooltip (and in the Data Quality review table).
+    const badgeLabel = matchGroupLabel(group);
+    const badgeTitle = matchMethodLabel(r.matchStatus);
     const rowClass = r.dataQualityStatus === "critical" ? "row-critical" : "";
     return `<tr class="${rowClass}" data-site="${escapeHtml(r.siteKey)}">
       <td>${escapeHtml(r.region || "")}</td>
@@ -149,7 +160,7 @@ function renderSiteTable(records) {
       <td>${r.sectorsMissing.map((s) => `<span class="cell-sector cell-sector-missing" title="${escapeHtml(s)}">${sectorIcon(s, 15)}</span>`).join("") || "—"}</td>
       <td>${r.coverageScore === null ? "—" : r.coverageScore + "%"}</td>
       <td>${r.lastUpdated ? r.lastUpdated.slice(0, 10) : "—"}</td>
-      <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
+      <td><span class="badge ${badgeClass}" title="${escapeHtml(badgeTitle)}">${badgeLabel}</span></td>
     </tr>`;
   }).join("") || `<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:24px;">${t("no_sites_match")}</td></tr>`;
 
@@ -167,19 +178,21 @@ function renderSiteTable(records) {
 function renderDataStatusExplainer(tally) {
   const el = document.getElementById("dse-counts");
   if (!el) return;
-  const total = tally.matched + tally.review;
+  const total = tally.matched + tally.review + tally.unmatched;
   const chips = [
     ["matched", tally.matched, "badge-success", t("dse_chip_matched")],
     ["review", tally.review, "badge-warning", t("dse_chip_review")],
+    ["unmatched", tally.unmatched, "badge-critical", t("dse_chip_unmatched")],
   ]
     .map(([, n, cls, label]) => `<span class="dse-chip ${cls}"><strong>${n.toLocaleString()}</strong> ${label}</span>`)
     .join("");
-  const hidden = tableStatusFilter === "hide_unresolved" ? tally.review : 0;
+  const hidden = tableStatusFilter === "hide_unresolved" ? tally.review + tally.unmatched : 0;
   const note = hidden
     ? `<span class="dse-hidden-note">${t("dse_hidden", { n: hidden.toLocaleString() })}
         <button type="button" class="dse-showall" id="dse-showall">${t("dse_show_all")}</button></span>`
     : "";
-  el.innerHTML = `<span class="dse-total">${t("dse_of_total", { n: total.toLocaleString() })}</span>${chips}${note}`;
+  el.innerHTML = `<span class="dse-total">${t("dse_of_total", { n: total.toLocaleString() })}</span>${chips}${note}
+    <span class="dse-official-note">${t("dse_official_note")}</span>`;
   const showAll = document.getElementById("dse-showall");
   if (showAll) showAll.addEventListener("click", () => {
     tableStatusFilter = "all";
