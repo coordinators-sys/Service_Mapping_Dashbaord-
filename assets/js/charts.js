@@ -1157,9 +1157,13 @@ function renderGapProfiles(records) {
     const icon = SECTOR_ICONS[sector]
       ? `<img class="sector-icon gap-card-icon" src="${SECTOR_ICONS[sector]}?v=${ICON_VERSION}" alt="" />`
       : "";
+    // Colorblind-safe redundancy: the teal/coral split is never the ONLY
+    // signal — the figures beside it spell out "available"/"gap" in words,
+    // and the donut itself carries a shape glyph (✓/–/!) independent of hue.
+    const glyph = pct === null ? "" : pct >= 70 ? "✓" : pct >= 30 ? "–" : "!";
     const donut = pct === null
       ? `<div class="gap-donut gap-donut-empty"><span>—</span></div>`
-      : `<div class="gap-donut" style="background:conic-gradient(${COLORS.success} 0 ${pct}%, ${COLORS.critical} ${pct}% 100%)"><span>${pct}%</span></div>`;
+      : `<div class="gap-donut" style="background:conic-gradient(${COLORS.success} 0 ${pct}%, ${COLORS.critical} ${pct}% 100%)"><span>${pct}%<i class="gap-donut-glyph" aria-hidden="true">${glyph}</i></span></div>`;
 
     return `
       <div class="gap-card">

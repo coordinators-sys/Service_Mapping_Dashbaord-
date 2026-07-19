@@ -763,10 +763,13 @@ body {
 .gap-donut span {
   width: 48px; height: 48px; border-radius: 50%;
   background: var(--card-bg);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.8rem; font-weight: 700;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 700; line-height: 1.1;
 }
 .gap-donut-empty { background: var(--border); }
+/* Non-color cue on the donut (✓ good / – partial / ! critical) so the
+   teal/coral split is never the only signal for colorblind readers. */
+.gap-donut-glyph { font-style: normal; font-size: 0.68rem; font-weight: 800; opacity: 0.8; }
 
 /* Capped table: same visual height as the tall chart card beside it */
 .table-capped { max-height: 460px; overflow-y: auto; }
@@ -789,3 +792,29 @@ body {
 .dq-issue-row { display: flex; justify-content: space-between; padding: 7px 2px; border-bottom: 1px solid var(--border); font-size: 0.84rem; }
 .dq-issue-row:last-child { border-bottom: 0; }
 .dse-official-note { display: block; width: 100%; margin-top: 4px; font-size: 0.75rem; color: var(--text-muted); }
+
+/* --- Loading / error states ---------------------------------------------- */
+.loading-slow-note { display: none; margin-left: 8px; font-style: italic; opacity: 0.85; }
+#loading-banner.slow .loading-slow-note { display: inline; }
+.btn-retry { margin-left: 12px; }
+#api-error-banner { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+
+/* --- Footer ---------------------------------------------------------------*/
+.app-footer {
+  margin-top: 32px;
+  border-top: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 20px 0;
+}
+.footer-inner { display: flex; flex-direction: column; gap: 8px; }
+.footer-brand { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.footer-logo { width: 22px; height: 22px; object-fit: contain; }
+.footer-privacy { font-size: 0.78rem; color: var(--text-muted); max-width: 900px; margin: 0; }
+.footer-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 0.78rem; }
+.footer-meta a { color: var(--dark-teal); }
+.footer-build { color: var(--text-muted); }
+
+/* One-line purpose statement under sections whose scope could otherwise be
+   confused with a neighboring section (Overview / Clusters / Coverage /
+   Priority all touch "where are the gaps" from a different angle). */
+.section-purpose { color: var(--text-muted); font-size: 0.82rem; margin: 0 0 12px; font-style: italic; }

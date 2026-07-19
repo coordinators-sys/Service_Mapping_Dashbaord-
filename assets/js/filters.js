@@ -320,4 +320,34 @@ function applyFilters() {
   renderChips();
   renderCaption();
   renderAll();
+  updateUrlFromFilters();
+}
+
+// Shareable filtered views: every active filter is reflected as a URL query
+// param (comma-separated values), so "share this link" reproduces the exact
+// same drill-down for a colleague. Uses replaceState (not pushState) so
+// clicking through filters doesn't spam browser history; the existing
+// section hash (from the sticky nav's scroll-spy) is preserved untouched.
+function updateUrlFromFilters() {
+  const params = new URLSearchParams();
+  SLICER_CONFIG.forEach(({ dimension }) => {
+    if (filters[dimension].size) params.set(dimension, Array.from(filters[dimension]).join(","));
+  });
+  const qs = params.toString();
+  const url = `${location.pathname}${qs ? "?" + qs : ""}${location.hash}`;
+  history.replaceState(history.state, "", url);
+}
+
+// Read filter state back out of the URL on load — the counterpart of
+// updateUrlFromFilters(). Called once, after the record set and slicer
+// options exist, so every restored value is validated against what's
+// actually reachable (an old/invalid link degrades to "no filter" for that
+// dimension rather than silently applying a stale value).
+function restoreFiltersFromUrl() {
+  const params = new URLSearchParams(location.search);
+  if (!params.toString()) return;
+  SLICER_CONFIG.forEach(({ dimension }) => {
+    const raw = params.get(dimension);
+    if (raw) filters[dimension] = new Set(raw.split(",").filter(Boolean));
+  });
 }

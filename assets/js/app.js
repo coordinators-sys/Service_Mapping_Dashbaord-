@@ -24,7 +24,17 @@ function setLoading(isLoading) {
 
 function showApiError(message) {
   const banner = document.getElementById("api-error-banner");
-  banner.textContent = message;
+  banner.innerHTML = "";
+  banner.appendChild(document.createTextNode(message + " "));
+  const retry = document.createElement("button");
+  retry.type = "button";
+  retry.className = "btn btn-light btn-retry";
+  retry.textContent = t("retry");
+  retry.addEventListener("click", () => {
+    banner.classList.add("hidden");
+    loadData();
+  });
+  banner.appendChild(retry);
   banner.classList.remove("hidden");
 }
 
@@ -44,11 +54,26 @@ function updateHeaderInfo() {
   });
 }
 
+// The API's serverless function can cold-start for several seconds, so
+// "still loading" and "actually stuck" look identical without a timeout.
+// A slow-load notice appears first (informative, not alarming); past
+// HARD_TIMEOUT_MS the fetch is aborted and treated as a real failure with a
+// retry action — the page never sits on an indefinite spinner.
+const SLOW_LOAD_NOTICE_MS = 8000;
+const HARD_TIMEOUT_MS = 25000;
+
 async function loadData() {
   setLoading(true);
+  const loadingBanner = document.getElementById("loading-banner");
+  loadingBanner.classList.remove("slow");
+  document.getElementById("api-error-banner").classList.add("hidden");
+  const slowTimer = setTimeout(() => loadingBanner.classList.add("slow"), SLOW_LOAD_NOTICE_MS);
+  const controller = new AbortController();
+  const hardTimer = setTimeout(() => controller.abort(), HARD_TIMEOUT_MS);
+
   try {
     const [payload, districts, catchments, regions] = await Promise.all([
-      fetch("/api/service-mapping").then((response) => {
+      fetch("/api/service-mapping", { signal: controller.signal }).then((response) => {
         if (!response.ok) throw new Error(`API ${response.status}`);
         return response.json();
       }),
@@ -70,9 +95,19 @@ async function loadData() {
       showApiError(`Could not reach KoboToolbox: ${payload.error || "unknown error"}. Showing an empty dashboard.`);
     }
   } catch (err) {
-    showApiError(`Could not load service-mapping data (${err.message}). Showing an empty dashboard.`);
-    state.all = [];
+    const timedOut = err.name === "AbortError";
+    const lastKnown = state.generatedAt ? new Date(state.generatedAt).toLocaleString() : null;
+    const suffix = lastKnown ? ` Showing the last successfully synced data (${lastKnown}).` : " Showing an empty dashboard.";
+    showApiError(
+      (timedOut
+        ? `Data request timed out after ${HARD_TIMEOUT_MS / 1000}s — the server may be starting up.`
+        : `Could not load service-mapping data (${err.message}).`) + suffix
+    );
+    if (!state.all) state.all = [];
   } finally {
+    clearTimeout(slowTimer);
+    clearTimeout(hardTimer);
+    loadingBanner.classList.remove("slow");
     setLoading(false);
     // Default to the LATEST COMPLETED reporting month: an "All periods" load
     // mixes reporting rounds, and (before the latest-status collapse) counted
@@ -80,6 +115,7 @@ async function loadData() {
     // away (clear the period chip) and now use latest-site-status semantics.
     defaultPeriodSelection();
     populateInitialFilterOptions();
+    restoreFiltersFromUrl();
     syncSlicerSelections();
     applyFilters();
   }
@@ -308,10 +344,16 @@ document.addEventListener("error", (e) => {
   }
 }, true);
 
+// Bumped alongside the asset cache-bust query param (index.html ?v=N) so the
+// footer always names the build actually being served.
+const DASHBOARD_BUILD = "v33";
+
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   initSlicers();
   setupEventListeners();
   setupSectionNav();
+  const buildEl = document.getElementById("footer-build");
+  if (buildEl) buildEl.textContent = `Build ${DASHBOARD_BUILD}`;
   loadData();
 });
