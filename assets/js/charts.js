@@ -1306,7 +1306,12 @@ function renderDataQuality(records) {
       <td>${escapeHtml((q.lastUpdated || "").slice(0, 10))}</td>
     </tr>`).join("");
 
-  // Exclusion warning banner on the overview (hidden when nothing is excluded)
+  // Exclusion notice on the overview. The element is intentionally NOT in
+  // index.html — an amber warning above the headline figures read as an alarm
+  // to non-technical audiences. The same information stays fully visible (and
+  // reconciling) in the Data Quality section below, so nothing is concealed.
+  // Re-add <div id="dq-exclusion-banner" class="banner banner-warning dq-banner hidden">
+  // to the overview section to switch it back on; this code then populates it.
   const banner = document.getElementById("dq-exclusion-banner");
   if (banner) {
     const excluded = byGroup.needs_review + byGroup.unmatched;
