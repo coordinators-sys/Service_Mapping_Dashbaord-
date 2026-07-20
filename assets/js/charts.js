@@ -995,8 +995,16 @@ function renderCompleteness(records) {
   // data says. The two factual counts below carry the same context without
   // asserting a performance judgement; restore the rate here once an
   // expected-to-report cohort exists to divide by.
+  // The master list is NOT one homogeneous denominator: 4,119 sites carry a
+  // permanent CCCM Site ID, while 2,688 are still on a temporary code pending
+  // Site ID Generator registration. Publishing only the 6,807 total invites
+  // the reader to divide by it, which overstates the registered caseload, so
+  // the two are shown separately.
+  const approved = master.approved != null ? master.approved : total;
+  const pending = master.pendingRegistration || 0;
   kpiRow.innerHTML = [
-    kpiCard("kpi-master-sites", formatNumber(total), t("kpi_master_sites"), t("tip_master_sites")),
+    kpiCard("kpi-master-sites", formatNumber(approved), t("kpi_master_sites_approved"), t("tip_master_sites_approved")),
+    kpiCard("kpi-master-pending", formatNumber(pending), t("kpi_master_sites_pending"), t("tip_master_sites_pending")),
     kpiCard("kpi-sites-reported", formatNumber(reported), t("kpi_sites_reported"), t("tip_sites_reported")),
     kpiCard("kpi-stale-reports", formatNumber(stale), t("kpi_stale_reports"), t("tip_stale_reports")),
   ].join("");

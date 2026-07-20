@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="assets/css/dashboard.css?v=37" />
+  <link rel="stylesheet" href="assets/css/dashboard.css?v=38" />
 </head>
 <body>
   <header class="app-header">
@@ -283,11 +283,16 @@
           </select>
           <button class="btn btn-primary" id="btn-export-csv" data-i18n="export_csv">Export CSV</button>
         </div>
-        <!-- Data-status explainer: makes the Matched / Needs review / Unmatched
-             and Unknown numbers self-answering for anyone viewing the published
-             dashboard. Counts are filled by renderSiteTable. -->
+        <!-- Data-status explainer. The per-group COUNT CHIPS that used to sit
+             here (id="dse-counts") were removed: leading the public table with
+             "1,290 matched / 258 need review / 152 unmatched" put data-pipeline
+             jargon in front of the audience before any service-coverage
+             finding. The same counts, reconciled, remain in the Data Quality
+             section, and the status dropdown above still switches the view.
+             The plain-language definitions below are KEPT, because the table
+             shows a "Data status" badge on every row that readers need
+             explained. renderDataStatusExplainer no-ops without the element. -->
         <div class="data-status-explainer" id="data-status-explainer">
-          <div class="dse-counts" id="dse-counts"></div>
           <button type="button" class="dse-toggle" id="dse-toggle" aria-expanded="false" data-i18n="dse_learn_more">What do these mean?</button>
           <div class="dse-detail hidden" id="dse-detail">
             <p><span class="badge badge-success" data-i18n="badge_matched_id">Matched by Site ID</span> <span data-i18n="dse_matched">— the record is linked to an official site on the CCCM master list by its permanent Site ID (or exact name). Trust these; they feed the coverage figures directly.</span></p>
@@ -410,14 +415,14 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF" crossorigin="anonymous"></script>
-  <script src="assets/js/translations.js?v=37"></script>
-  <script src="assets/js/multiselect.js?v=37"></script>
-  <script src="assets/js/filters.js?v=37"></script>
-  <script src="assets/js/semantic.js?v=37"></script>
-  <script src="assets/js/charts.js?v=37"></script>
-  <script src="assets/js/maps.js?v=37"></script>
-  <script src="assets/js/tables.js?v=37"></script>
-  <script src="assets/js/export.js?v=37"></script>
-  <script src="assets/js/app.js?v=37"></script>
+  <script src="assets/js/translations.js?v=38"></script>
+  <script src="assets/js/multiselect.js?v=38"></script>
+  <script src="assets/js/filters.js?v=38"></script>
+  <script src="assets/js/semantic.js?v=38"></script>
+  <script src="assets/js/charts.js?v=38"></script>
+  <script src="assets/js/maps.js?v=38"></script>
+  <script src="assets/js/tables.js?v=38"></script>
+  <script src="assets/js/export.js?v=38"></script>
+  <script src="assets/js/app.js?v=38"></script>
 </body>
 </html>

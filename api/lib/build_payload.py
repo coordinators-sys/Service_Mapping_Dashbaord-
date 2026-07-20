@@ -11,6 +11,7 @@ import gzip
 import json
 import logging
 import os
+import re
 import threading
 import time
 from collections import Counter
@@ -29,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _MASTER_SITES_CSV = os.path.join(_PROJECT_ROOT, "data", "master-sites.csv")
+
+# Temporary CCCM Site ID (…-T####) = site pending Site ID Generator registration.
+_TEMP_ID_RE = re.compile(r"-T\d+$", re.IGNORECASE)
 
 _COVERAGE_LABEL = {"covered": "Yes", "not_covered": "No", "unknown": "Unknown"}
 
@@ -176,10 +180,23 @@ def _master_sites_summary() -> dict:
     """
     index = get_master_site_index(_MASTER_SITES_CSV)
     by_district: dict[str, int] = {}
+    pending = 0
     for site in index.sites:
         d = site.district or "—"
         by_district[d] = by_district.get(d, 0) + 1
-    return {"total": len(index.sites), "byDistrict": by_district}
+        # A temporary id (…-T####) marks a site the Site ID Generator has not
+        # registered yet ("TEMPORARY - pending Site ID Generator registration").
+        # Verified against the master list: the T-code pattern and that record
+        # status select exactly the same 2,688 sites, so either is authoritative.
+        if _TEMP_ID_RE.search(site.cccm_site_id or ""):
+            pending += 1
+    total = len(index.sites)
+    return {
+        "total": total,
+        "approved": total - pending,
+        "pendingRegistration": pending,
+        "byDistrict": by_district,
+    }
 
 
 def _summarize(records: list[dict]) -> dict:

@@ -178,6 +178,10 @@ const TRANSLATIONS = {
     tip_sites_not_reported: "Master-list sites with no record in the current selection.",
     tip_reporting_rate: "Sites reported ÷ master-list sites × 100. This is a share of the FULL master list, not of a per-round expected cohort.",
     tip_stale_reports: "Reported sites whose most recent record is older than 180 days.",
+    kpi_master_sites_approved: "Approved master-list sites",
+    tip_master_sites_approved: "Sites on the CCCM master site list holding a permanent CCCM Site ID (officially registered).",
+    kpi_master_sites_pending: "Pending registration",
+    tip_master_sites_pending: "Sites recorded on the master list under a TEMPORARY code, awaiting Site ID Generator registration. They are real reported sites; their permanent Site ID has not been issued yet.",
     completeness_note: "How many CCCM master-list sites appear in the current selection. Service mapping does not survey every master-list site in every round, so this is reporting SCOPE, not a compliance rate — a site absent here has not necessarily failed to report.",
 
     // Agencies extras
@@ -509,6 +513,10 @@ const TRANSLATIONS = {
     tip_sites_not_reported: "Goobaha liiska rasmiga ah ee aan lahayn diiwaan xulashada hadda.",
     tip_reporting_rate: "Goobaha la soo sheegay ÷ goobaha liiska rasmiga ah × 100. Kani waa saami liiska OO DHAN, ma aha cabbir xilli-warbixineed.",
     tip_stale_reports: "Goobaha diiwaankooda ugu dambeeya uu ka weyn yahay 180 maalmood.",
+    kpi_master_sites_approved: "Goobo liiska guud oo la ansixiyay",
+    tip_master_sites_approved: "Goobaha liiska guud ee CCCM ee haysta Aqoonsi Goob CCCM oo joogto ah (si rasmi ah loo diiwaangeliyay).",
+    kpi_master_sites_pending: "Sugaya diiwaangelin",
+    tip_master_sites_pending: "Goobo liiska guud lagu diiwaangeliyay kood KU MEEL GAAR ah, sugaya diiwaangelinta Site ID Generator. Waa goobo dhab ah oo la soo sheegay; aqoonsigooda joogtada ah weli lama bixin.",
     completeness_note: "Immisa goob oo liiska guud ee CCCM ku jira ayaa ka muuqda xulashada hadda. Khariidaynta adeegyadu ma baarto goob kasta xilli kasta, sidaas darteed tanu waa BALLAADHKA warbixinta, ma aha heer u hoggaansanaan — goob halkan ka maqan macnaheedu ma aha inay warbixin waayday.",
 
     h_single_provider: "Qaybaha leh hal bixiye kaliya",
