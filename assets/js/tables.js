@@ -133,7 +133,12 @@ function renderSiteTable(records) {
     return va > vb ? tableSortDir : -tableSortDir;
   });
 
-  document.getElementById("sites-table-count").textContent = t("n_assessed_sites", { n: allRows.length.toLocaleString() });
+  // Count what is actually LISTED, not the pre-filter total. Under the default
+  // "Matched sites only" view this equals the headline KPI's assessed-sites
+  // figure, so the two can never appear to contradict each other; the full
+  // breakdown (matched / needs review / unmatched) is in the explainer strip
+  // directly above, so nothing is hidden without its count.
+  document.getElementById("sites-table-count").textContent = t("n_assessed_sites", { n: rows.length.toLocaleString() });
   _drawerSiteOrder = rows.map((r) => r.siteKey); // prev/next follows table order
 
   const totalPages = Math.max(1, Math.ceil(rows.length / tablePageSize));

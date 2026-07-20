@@ -346,7 +346,7 @@ document.addEventListener("error", (e) => {
 
 // Bumped alongside the asset cache-bust query param (index.html ?v=N) so the
 // footer always names the build actually being served.
-const DASHBOARD_BUILD = "v33";
+const DASHBOARD_BUILD = "v34";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
