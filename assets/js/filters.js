@@ -94,6 +94,12 @@ function friendlyCatchment(value) {
   return group ? `${group} · ${label}` : label;
 }
 
+// NOTE: "source" is intentionally NOT a slicer. Both feeds (the CCCM service
+// mapping Kobo form and the cluster provider directory) are CCCM cluster data,
+// and the semantic layer already counts a site reported by both only once, so
+// exposing the split asked end users to reason about collection pipelines.
+// filters.source remains in state (empty = no restriction) so filtered() and
+// any future internal view keep working without a rewrite.
 const SLICER_CONFIG = [
   { dimension: "region", labelKey: "f_region", nounKey: "noun_regions" },
   { dimension: "district", labelKey: "f_district", nounKey: "noun_districts" },
@@ -103,7 +109,6 @@ const SLICER_CONFIG = [
   { dimension: "sector", labelKey: "f_sector", nounKey: "noun_sectors" },
   { dimension: "agency", labelKey: "f_agency", nounKey: "noun_agencies" },
   { dimension: "coverage", labelKey: "f_coverage", nounKey: "noun_statuses" },
-  { dimension: "source", labelKey: "f_source", nounKey: "noun_sources" },
 ];
 
 function initSlicers() {
