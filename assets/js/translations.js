@@ -178,7 +178,7 @@ const TRANSLATIONS = {
     tip_sites_not_reported: "Master-list sites with no record in the current selection.",
     tip_reporting_rate: "Sites reported ÷ master-list sites × 100. This is a share of the FULL master list, not of a per-round expected cohort.",
     tip_stale_reports: "Reported sites whose most recent record is older than 180 days.",
-    completeness_note: "Note: the reporting rate uses the full CCCM master site list as its denominator. A per-reporting-round 'expected to report' scope has not been configured yet, so this rate understates completeness where only part of the list was requested to report.",
+    completeness_note: "How many CCCM master-list sites appear in the current selection. Service mapping does not survey every master-list site in every round, so this is reporting SCOPE, not a compliance rate — a site absent here has not necessarily failed to report.",
 
     // Agencies extras
     h_single_provider: "Sectors with a single provider",
@@ -509,7 +509,7 @@ const TRANSLATIONS = {
     tip_sites_not_reported: "Goobaha liiska rasmiga ah ee aan lahayn diiwaan xulashada hadda.",
     tip_reporting_rate: "Goobaha la soo sheegay ÷ goobaha liiska rasmiga ah × 100. Kani waa saami liiska OO DHAN, ma aha cabbir xilli-warbixineed.",
     tip_stale_reports: "Goobaha diiwaankooda ugu dambeeya uu ka weyn yahay 180 maalmood.",
-    completeness_note: "Fiiro gaar ah: heerka warbixintu wuxuu isticmaalaa liiska rasmiga ah oo dhan. Cabbir 'la filayo' oo xilli kasta ah wali lama qaabeynin.",
+    completeness_note: "Immisa goob oo liiska guud ee CCCM ku jira ayaa ka muuqda xulashada hadda. Khariidaynta adeegyadu ma baarto goob kasta xilli kasta, sidaas darteed tanu waa BALLAADHKA warbixinta, ma aha heer u hoggaansanaan — goob halkan ka maqan macnaheedu ma aha inay warbixin waayday.",
 
     h_single_provider: "Qaybaha leh hal bixiye kaliya",
     single_provider: "bixiyaha kaliya: {agency}",

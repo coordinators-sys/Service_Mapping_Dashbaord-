@@ -986,11 +986,18 @@ function renderCompleteness(records) {
     if ((now - new Date(d).getTime()) / 86400000 > 180) stale += 1;
   });
 
+  // Deliberately NOT shown: a "reporting rate" percentage and a "sites not
+  // reported" count. Both would be computed against the FULL master list,
+  // but service mapping does not ask every master-list site to report in
+  // every round — no per-round "expected to report" cohort is configured.
+  // Published against the wrong denominator they read as partner
+  // non-compliance rather than as scope, which is the opposite of what the
+  // data says. The two factual counts below carry the same context without
+  // asserting a performance judgement; restore the rate here once an
+  // expected-to-report cohort exists to divide by.
   kpiRow.innerHTML = [
     kpiCard("kpi-master-sites", formatNumber(total), t("kpi_master_sites"), t("tip_master_sites")),
     kpiCard("kpi-sites-reported", formatNumber(reported), t("kpi_sites_reported"), t("tip_sites_reported")),
-    kpiCard("kpi-sites-not-reported", formatNumber(notReported), t("kpi_sites_not_reported"), t("tip_sites_not_reported"), notReported > 0),
-    kpiCard("kpi-reporting-rate", formatPct(rate), t("kpi_reporting_rate"), t("tip_reporting_rate")),
     kpiCard("kpi-stale-reports", formatNumber(stale), t("kpi_stale_reports"), t("tip_stale_reports")),
   ].join("");
 

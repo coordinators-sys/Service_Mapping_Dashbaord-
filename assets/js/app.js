@@ -109,11 +109,13 @@ async function loadData() {
     clearTimeout(hardTimer);
     loadingBanner.classList.remove("slow");
     setLoading(false);
-    // Default to the LATEST COMPLETED reporting month: an "All periods" load
-    // mixes reporting rounds, and (before the latest-status collapse) counted
-    // a site once per month it reported. All-period views remain one click
-    // away (clear the period chip) and now use latest-site-status semantics.
-    defaultPeriodSelection();
+    // Load UNFILTERED. Applying a period filter automatically made the
+    // dashboard open in a state the visitor did not choose, with a filter chip
+    // they had to notice and clear. That is safe to drop now: with no period
+    // selected, coverage runs on latest-site-status cells (semantic.js
+    // latestStatusCells), so a site reporting in several months still counts
+    // once — the double-counting that originally justified the default is
+    // handled in the analytical layer, not by pre-filtering the view.
     populateInitialFilterOptions();
     restoreFiltersFromUrl();
     syncSlicerSelections();
@@ -123,27 +125,6 @@ async function loadData() {
 
 function populateInitialFilterOptions() {
   refreshSlicerOptions();
-}
-
-function defaultPeriodSelection() {
-  const counts = new Map();
-  state.all.forEach((r) => {
-    if (r.reportingPeriod) counts.set(r.reportingPeriod, (counts.get(r.reportingPeriod) || 0) + 1);
-  });
-  const periods = Array.from(counts.keys()).sort();
-  if (!periods.length) return;
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  // Latest COMPLETED month (the in-progress month is not a finished round)
-  // that also carries SUBSTANTIAL reporting — a thin partial month (e.g. a
-  // handful of late submissions) would land visitors on a near-empty view.
-  const maxCount = Math.max(...counts.values());
-  const threshold = Math.max(100, maxCount * 0.1);
-  const candidates = periods.filter((p) => p !== currentMonth && counts.get(p) >= threshold);
-  const pick = candidates.length
-    ? candidates[candidates.length - 1]
-    : periods.reduce((a, b) => (counts.get(b) >= counts.get(a) ? b : a)); // biggest round as fallback
-  filters.period = new Set([pick]);
 }
 
 // Methodology wording lives in the translation dictionaries (EN + SO) so it
@@ -346,7 +327,7 @@ document.addEventListener("error", (e) => {
 
 // Bumped alongside the asset cache-bust query param (index.html ?v=N) so the
 // footer always names the build actually being served.
-const DASHBOARD_BUILD = "v35";
+const DASHBOARD_BUILD = "v37";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
