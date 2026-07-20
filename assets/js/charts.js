@@ -1224,6 +1224,17 @@ function matchGroupBadgeClass(group) {
   return group === "matched" ? "badge-success" : group === "needs_review" ? "badge-warning" : "badge-critical";
 }
 
+// NOTE: the Data Quality section was removed from the published dashboard.
+// Its audience — CCCM partners, the Cluster Coordinator, donors, OCHA, ICCG —
+// is not technical, and reconciliation tables, match-method breakdowns and a
+// "records awaiting review" queue described the data PIPELINE rather than
+// service coverage, which read as a problem report rather than as assurance.
+// Nothing about the published figures changes: official coverage already uses
+// verified matched sites only. The detail remains available to the IM team via
+// the "Data-quality issues" CSV in the download menu, and the matching
+// hierarchy (including how unmatched records are handled) stays documented in
+// the Methodology drawer. This function no-ops without its container; re-add
+// the <section id="section-quality"> markup to switch it back on.
 function renderDataQuality(records) {
   const row = document.getElementById("dq-recon-row");
   if (!row) return;

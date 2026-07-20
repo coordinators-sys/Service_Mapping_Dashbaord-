@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="assets/css/dashboard.css?v=38" />
+  <link rel="stylesheet" href="assets/css/dashboard.css?v=39" />
 </head>
 <body>
   <header class="app-header">
@@ -111,7 +111,6 @@
       <a href="#section-priority" class="section-nav-link" data-i18n="nav_priority">Priority gaps</a>
       <a href="#section-catchments" class="section-nav-link" data-i18n="nav_catchments">Catchments</a>
       <a href="#section-sites" class="section-nav-link" data-i18n="nav_sites">Sites</a>
-      <a href="#section-quality" class="section-nav-link" data-i18n="nav_quality">Data quality</a>
     </div>
   </nav>
 
@@ -325,43 +324,6 @@
       </div>
     </section>
 
-    <section id="section-quality" class="section">
-      <div class="card">
-        <div class="card-header"><h2 data-i18n="h_quality">Data quality &amp; reconciliation</h2></div>
-        <p class="section-intro" data-i18n="dq_intro">Official coverage indicators use verified matched sites only. Everything received is accounted for here — nothing is deleted, and the three match-status categories always sum to the records received.</p>
-        <div class="kpi-grid" id="dq-recon-row"></div>
-        <div class="chart-grid">
-          <div class="card">
-            <div class="card-header"><h2 data-i18n="h_dq_methods">Matching-method breakdown</h2></div>
-            <div id="dq-method-breakdown"></div>
-          </div>
-          <div class="card">
-            <div class="card-header"><h2 data-i18n="h_dq_issues">Issue summary</h2></div>
-            <div id="dq-issue-summary"></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header"><h2 data-i18n="h_dq_review">Records awaiting review</h2></div>
-          <div class="table-scroll table-capped" id="dq-review-scroll">
-            <table class="data-table compact-table" id="dq-review-table">
-              <thead>
-                <tr>
-                  <th data-i18n="col_dq_name">Submitted site name / code</th>
-                  <th data-i18n="col_district">District</th>
-                  <th data-i18n="col_dq_suggested">Suggested master site</th>
-                  <th data-i18n="col_status">Match status</th>
-                  <th data-i18n="col_dq_method">Match method</th>
-                  <th data-i18n="col_dq_source">Source</th>
-                  <th data-i18n="col_dq_date">Latest submission</th>
-                </tr>
-              </thead>
-              <tbody id="dq-review-table-body"></tbody>
-            </table>
-          </div>
-          <p class="completeness-note" data-i18n="dq_review_note">Review actions (approve, re-match, register as a new site) are carried out in KoboToolbox and the master-list registration process; corrections flow into the dashboard on the next data refresh.</p>
-        </div>
-      </div>
-    </section>
 
 
   </main>
@@ -415,14 +377,14 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF" crossorigin="anonymous"></script>
-  <script src="assets/js/translations.js?v=38"></script>
-  <script src="assets/js/multiselect.js?v=38"></script>
-  <script src="assets/js/filters.js?v=38"></script>
-  <script src="assets/js/semantic.js?v=38"></script>
-  <script src="assets/js/charts.js?v=38"></script>
-  <script src="assets/js/maps.js?v=38"></script>
-  <script src="assets/js/tables.js?v=38"></script>
-  <script src="assets/js/export.js?v=38"></script>
-  <script src="assets/js/app.js?v=38"></script>
+  <script src="assets/js/translations.js?v=39"></script>
+  <script src="assets/js/multiselect.js?v=39"></script>
+  <script src="assets/js/filters.js?v=39"></script>
+  <script src="assets/js/semantic.js?v=39"></script>
+  <script src="assets/js/charts.js?v=39"></script>
+  <script src="assets/js/maps.js?v=39"></script>
+  <script src="assets/js/tables.js?v=39"></script>
+  <script src="assets/js/export.js?v=39"></script>
+  <script src="assets/js/app.js?v=39"></script>
 </body>
 </html>
