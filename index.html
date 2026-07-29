@@ -124,6 +124,10 @@
   </nav>
 
   <main class="container">
+    <!-- TEMPORARY (expires 2026-08-12): explains the partner-only restriction
+         so partners do not read the login prompt as a broken tool. Remove
+         with middleware.js when the public aggregate tier ships. -->
+    <div id="restriction-banner" class="banner banner-info" role="status" data-i18n="restriction_notice">Partner access only. This dashboard is temporarily restricted to CCCM Cluster partners while a public summary view is prepared. Site-level detail remains available to partners as normal.</div>
     <div id="api-error-banner" class="banner banner-warning hidden" role="alert"></div>
     <div id="stale-banner" class="banner banner-warning hidden" role="status"></div>
     <div id="empty-banner" class="banner banner-info hidden" role="status"></div>
