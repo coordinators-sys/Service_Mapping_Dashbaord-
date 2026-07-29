@@ -5,10 +5,10 @@
 # work per visitor), and the API endpoint remains as fallback.
 #
 # Requires repository secrets: KOBO_BASE_URL, KOBO_ASSET_UID, KOBO_API_TOKEN,
-# and (optional, for the provider directory) ZITE_* equivalents matching
-# api/lib/settings.py. Until they are set, scheduled runs fail visibly here
-# and the committed payload simply ages — the dashboard's stale banner is the
-# user-facing signal.
+# and ZITEMANAGER_REPORT_URL (the full report link INCLUDING its key= parameter
+# — settings.py reads one URL, not separate base/key/id values). Until they are
+# set, scheduled runs fail visibly here and the committed payload simply ages —
+# the dashboard's stale banner is the user-facing signal.
 #
 # The push triggers the normal Vercel deploy AND the checks workflow, so every
 # refreshed artefact is re-scanned for personal data and site identity before
@@ -38,9 +38,7 @@ jobs:
           KOBO_BASE_URL: ${{ secrets.KOBO_BASE_URL }}
           KOBO_ASSET_UID: ${{ secrets.KOBO_ASSET_UID }}
           KOBO_API_TOKEN: ${{ secrets.KOBO_API_TOKEN }}
-          ZITE_BASE_URL: ${{ secrets.ZITE_BASE_URL }}
-          ZITE_API_KEY: ${{ secrets.ZITE_API_KEY }}
-          ZITE_REPORT_ID: ${{ secrets.ZITE_REPORT_ID }}
+          ZITEMANAGER_REPORT_URL: ${{ secrets.ZITEMANAGER_REPORT_URL }}
         run: python scripts/build_static_payload.py
       - name: Verify the artefact before committing it
         run: |
