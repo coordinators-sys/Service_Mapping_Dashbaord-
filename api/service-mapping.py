@@ -26,12 +26,26 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         query = parse_qs(urlparse(self.path).query)
         force_refresh = query.get("refresh", ["false"])[0].lower() == "true"
+        # `?format=rows` returns the pre-columnar row shape. The dashboard never
+        # asks for it; it exists so a script written against the old response
+        # does not break silently, and so the encoding can be inspected by hand.
+        want_rows = query.get("format", [""])[0].lower() == "rows"
 
         # json/gzip bytes are pre-encoded and cached alongside the payload —
         # gzip cuts the ~18MB record set by ~97% for low-bandwidth clients,
         # and caching the encoded bytes means repeat requests cost ~ms.
         try:
-            json_body, gzip_body = get_payload_encoded(force_refresh=force_refresh)
+            if want_rows:
+                from api.lib import columnar as _columnar
+                from api.lib.build_payload import build_payload as _build
+                payload = dict(_build(force_refresh=force_refresh))
+                if isinstance(payload.get("records"), dict):
+                    payload["records"] = _columnar.decode(payload["records"])
+                    payload["encoding"] = "rows"
+                json_body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+                gzip_body = gzip.compress(json_body, compresslevel=6)
+            else:
+                json_body, gzip_body = get_payload_encoded(force_refresh=force_refresh)
             status = 200
         except Exception as exc:  # last-resort guard — never leak the traceback or the token to the CLIENT
             # ...but DO print it to stderr, which Vercel captures in Logs — otherwise

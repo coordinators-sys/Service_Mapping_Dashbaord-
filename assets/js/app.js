@@ -202,7 +202,10 @@ async function loadData() {
       fetch("data/partner-update-status.json").then((r) => r.json()).catch(() => null),
     ]);
 
-    state.all = payload.records || [];
+    // One decode, immediately after the fetch. Nothing downstream knows the
+    // wire format exists; readRecords also accepts plain rows, so a cached
+    // pre-change response still loads.
+    state.all = readRecords(payload.records);
     state.summary = payload.summary || null;
     state.masterSites = payload.masterSites || null;
     // reason code -> explanation, published once instead of on every record.
@@ -479,7 +482,7 @@ document.addEventListener("error", (e) => {
 
 // Bumped alongside the asset cache-bust query param (index.html ?v=N) so the
 // footer always names the build actually being served.
-const DASHBOARD_BUILD = "v56";
+const DASHBOARD_BUILD = "v57";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
