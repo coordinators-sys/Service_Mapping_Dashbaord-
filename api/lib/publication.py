@@ -67,6 +67,12 @@ REASON_CODES: dict[str, tuple[str, str]] = {
         "The submission carries no usable identifier, so it cannot be versioned or "
         "de-duplicated.",
     ),
+    "REPORTING_LEVEL_INFERRED": (
+        "low",
+        "The submission did not state a reporting level, but names a specific "
+        "site, so it is treated as a site-level observation. Recorded explicitly "
+        "rather than assumed.",
+    ),
     "SUPERSEDED_VERSION": (
         "low",
         "A newer version of this submission exists. Retained for audit; excluded "
@@ -103,7 +109,8 @@ def classify(reason_codes: list[str]) -> tuple[str, str]:
 def evaluate(
     *,
     scope_type: str | None,
-    district: str | None,
+    scope_inferred: bool = False,
+    district: str | None = None,
     district_resolved: bool,
     catchment_raw: str | None,
     catchment_resolved: bool,
@@ -124,6 +131,8 @@ def evaluate(
 
     if scope_type not in ("district", "catchment", "site"):
         codes.append("UNKNOWN_REPORTING_LEVEL")
+    elif scope_inferred:
+        codes.append("REPORTING_LEVEL_INFERRED")
 
     if not district:
         codes.append("MISSING_DISTRICT")

@@ -42,6 +42,9 @@ _ADMIN_REF_PATH = os.path.join(_PROJECT_ROOT, "data", "admin-reference.json")
 # Legacy shapefile-derived lookup, kept only as a fallback for p-codes the form
 # does not define, so an unknown code degrades to a name rather than vanishing.
 _PCODES_PATH = os.path.join(_PROJECT_ROOT, "data", "admin-pcodes.json")
+# Kobo submits the choice-list CODE ("acted"); the dashboard must show the
+# official LABEL ("ACTED"). Generated from the form's `organization` list.
+_ORGS_PATH = os.path.join(_PROJECT_ROOT, "data", "organizations.json")
 
 
 @lru_cache(maxsize=1)
@@ -50,6 +53,23 @@ def _load_admin_reference() -> dict:
         return {"regions": {}, "districts": {}}
     with open(_ADMIN_REF_PATH, encoding="utf-8") as f:
         return json.load(f)
+
+
+@lru_cache(maxsize=1)
+def _load_organizations() -> dict:
+    if not os.path.isfile(_ORGS_PATH):
+        return {}
+    with open(_ORGS_PATH, encoding="utf-8") as f:
+        return json.load(f).get("organizations", {})
+
+
+def organization_label(code):
+    """Official label for a Kobo organisation code; unknown codes pass
+    through unchanged so nothing is lost."""
+    if not code:
+        return code
+    key = str(code).strip()
+    return _load_organizations().get(key) or _load_organizations().get(key.lower()) or key
 
 
 @lru_cache(maxsize=1)
@@ -188,6 +208,7 @@ class ParsedSubmission:
     # area-level report, not treated as a failed site match.
     reporting_level: str | None
     reporting_level_raw: str | None
+    reporting_level_inferred: bool
     # Lineage — every published record must be traceable to its raw source.
     source_id: str | None            # Kobo _id
     source_root_uuid: str | None     # meta/rootUuid (logical key across versions)
@@ -275,6 +296,14 @@ def parse_submission(raw: dict) -> ParsedSubmission:
     level_value = find_by_suffix(raw, SITE_FIELD_SUFFIXES["level"])
     reporting_level_raw = str(level_value).strip() if level_value else None
     reporting_level = _normalize_reporting_level(reporting_level_raw)
+    # The `level` question is only asked for service mapping, so facility
+    # mapping and older form versions carry no level at all (17k+ historical
+    # submissions). Quarantining those would hide a third of the archive. If a
+    # submission names a SITE, its grain is not ambiguous - it is a site
+    # observation. That inference is recorded with its own reason code and is
+    # therefore explicit, not a silent default; with no level AND no site the
+    # grain really is unknown and the record is held for review.
+    level_inferred = False
 
     # Reporting partner = the agency that CONDUCTED the assessment.
     partner_value = find_by_suffix(raw, SITE_FIELD_SUFFIXES["reporting_partner"])
@@ -282,11 +311,16 @@ def parse_submission(raw: dict) -> ParsedSubmission:
     if reporting_partner and reporting_partner.lower() == OTHER_SENTINEL:
         other = find_by_suffix(raw, SITE_FIELD_SUFFIXES["reporting_partner_other"])
         reporting_partner = str(other).strip() if other else None
-    reporting_partner = canonical_name("agency", reporting_partner)
+    reporting_partner = canonical_name("agency", organization_label(reporting_partner))
 
     # Catchment straight from the SOURCE (never inferred from a matched site).
     catchment_value = find_by_suffix(raw, SITE_FIELD_SUFFIXES["catchment"])
     catchment_raw = str(catchment_value).strip() if catchment_value else None
+
+    if reporting_level is None and (site_id_raw or site_name_raw):
+        reporting_level = "site"
+        level_inferred = True
+
 
     rows: list[SectorAgencyRow] = []
     for sector_name, stem in SECTOR_DEFS:
@@ -316,6 +350,7 @@ def parse_submission(raw: dict) -> ParsedSubmission:
         site_name_raw=site_name_raw,
         reporting_level=reporting_level,
         reporting_level_raw=reporting_level_raw,
+        reporting_level_inferred=level_inferred,
         source_id=str(raw.get("_id")) if raw.get("_id") is not None else None,
         source_root_uuid=(raw.get("meta/rootUuid") or raw.get("meta/instanceID") or None),
         source_version=raw.get("__version__"),

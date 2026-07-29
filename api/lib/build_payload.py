@@ -88,7 +88,12 @@ def _resolve_catchment(raw_value, district):
     if not raw_value or not district:
         return None
     index = get_master_site_index(_MASTER_SITES_CSV)
-    want_code = str(raw_value).strip().upper()
+    # Kobo submits the catchment as districtPcode+code ("SO2401CA12"); the
+    # dashboard labels are district-qualified ("Baidoa · CA12"). Strip the
+    # p-code prefix so the two forms can be compared.
+    want_code = re.sub(r"^SO\d{4,6}", "", str(raw_value).strip(), flags=re.IGNORECASE).upper()
+    if not want_code:
+        return None
     want_district = str(district).strip().lower()
     for site in index.sites:
         if not site.catchment:
@@ -169,6 +174,7 @@ def _build_clean_records(raw_submissions: list[dict]) -> list[dict]:
         # --- validation and terminal state ------------------------------------
         reason_codes = evaluate(
             scope_type=scope_type,
+            scope_inferred=parsed.reporting_level_inferred,
             district=parsed.district,
             district_resolved=parsed.district_resolved,
             catchment_raw=catchment_raw,

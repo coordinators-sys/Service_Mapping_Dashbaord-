@@ -215,3 +215,54 @@ def test_reprocessing_the_same_payload_is_idempotent():
     after = _build_clean_records(list(SIX.values()))
     assert len(before) == len(after)
     assert {r["sourceId"] for r in before} == {r["sourceId"] for r in after}
+
+
+# ---------------------------------------------------------------------------
+# Defects found only against REAL production data — synthetic fixtures used the
+# already-clean values, so these three slipped through the first pass.
+
+
+def test_organisation_code_resolves_to_official_label():
+    """Kobo submits the choice-list CODE ("acted"); the dashboard must show the
+    LABEL ("ACTED"). Production published a lower-case code."""
+    raw = dict(SIX[34667410])
+    raw["organization_updating"] = "acted"
+    rec = _build_clean_records([raw])[0]
+    assert rec["reportingPartner"] == "ACTED"
+
+
+def test_catchment_pcode_prefix_is_stripped_and_resolved():
+    """Real submissions send districtPcode+code ("SO2401CA12"), not "CA12";
+    the un-stripped value failed to resolve and raised UNRESOLVED_CATCHMENT."""
+    raw = dict(SIX[34224509])
+    raw["group_general_info/subdistrict"] = "SO2401CA12"
+    rec = _build_clean_records([raw])[0]
+    assert rec["catchmentRaw"] == "SO2401CA12", "raw value retained verbatim"
+    assert rec["catchment"] and "CA12" in rec["catchment"]
+    assert "UNRESOLVED_CATCHMENT" not in rec["reasonCodes"]
+
+
+def test_missing_level_with_a_site_is_inferred_and_flagged_not_quarantined():
+    """The `level` question is only asked for service mapping, so 17k+ archived
+    submissions carry none. Quarantining them would hide a third of the record
+    set; naming a site makes the grain unambiguous, and the inference is
+    recorded explicitly rather than defaulted silently."""
+    raw = dict(SIX[33962858])
+    raw.pop("group_general_info/level")
+    rec = _build_clean_records([raw])[0]
+    assert rec["scopeType"] == "site"
+    assert "REPORTING_LEVEL_INFERRED" in rec["reasonCodes"]
+    assert "UNKNOWN_REPORTING_LEVEL" not in rec["reasonCodes"]
+    assert rec["publicationStatus"] != "quarantined"
+
+
+def test_missing_level_and_no_site_stays_unknown_and_is_held():
+    """With no level AND no site the grain really is undefined — that must
+    still be quarantined, so the inference above cannot become a blanket
+    default."""
+    raw = dict(SIX[34667410])
+    raw.pop("group_general_info/level")
+    rec = _build_clean_records([raw])[0]
+    assert rec["scopeType"] is None
+    assert "UNKNOWN_REPORTING_LEVEL" in rec["reasonCodes"]
+    assert rec["publicationStatus"] == "quarantined"

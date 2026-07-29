@@ -1,0 +1,31 @@
+{
+ "_comment": "Kobo choice-list code -> official organisation label, from the form's `organization` list. Submissions carry the CODE; the dashboard must display the LABEL.",
+ "organizations": {
+  "acted": "ACTED",
+  "amard": "AMARD",
+  "ayuub": "AYUUB",
+  "cesdo": "CESDO",
+  "dan": "DAN",
+  "drc": "DRC",
+  "gcri": "GCRI",
+  "hcri": "HCRI",
+  "iom": "IOM",
+  "irdo": "IRDO",
+  "irw": "IRW",
+  "jucri": "JUCRI",
+  "kaf": "KAF",
+  "lardo": "LARDO",
+  "mcan": "MCAN",
+  "moifad": "MOIFAD",
+  "mrdo": "MRDO",
+  "ncri": "NCRI",
+  "nofyl": "NoFYL",
+  "nrc": "NRC",
+  "pmwdo": "PMWDO",
+  "psa": "PSA",
+  "sado": "SADO",
+  "scc": "SCC",
+  "somlife": "SomLife",
+  "swcri": "SWCRI"
+ }
+}
