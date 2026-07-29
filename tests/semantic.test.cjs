@@ -191,3 +191,21 @@ test("all-periods official coverage counts a multi-month site once (no double co
   const [wash] = sectorCoverageFromCells(semantic.latestStatusCells(semantic.officialCells(cells)), ["WASH"]);
   assert.strictEqual(wash.covered, 1); // was 3 under the per-period grain
 });
+
+test("assessments exclude the ZiteManager provider directory", () => {
+  // Directory rows carry a submissionUuid, so counting them inflated the
+  // assessment KPI roughly threefold in production (8,446 vs 2,718).
+  const records = [
+    { submissionUuid: "kobo-1", dataSource: "kobo", scopeType: "district", district: "Afgooye" },
+    { submissionUuid: "kobo-1", dataSource: "kobo", scopeType: "district", district: "Afgooye" },
+    { submissionUuid: "kobo-2", dataSource: "kobo", scopeType: "site", district: "Luuq" },
+    { submissionUuid: "zite-9", dataSource: "zitemanager", district: "Baidoa" },
+    { submissionUuid: "zite-10", dataSource: "zitemanager", district: "Baidoa" },
+  ];
+  const assessments = semantic.assessmentsFromRecords(records);
+  assert.equal(assessments.length, 2, "two Kobo submissions, deduped; no directory rows");
+  assert.deepEqual(
+    assessments.map((a) => a.key).sort(),
+    ["kobo-1", "kobo-2"]
+  );
+});

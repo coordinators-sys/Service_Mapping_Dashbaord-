@@ -1,5 +1,5 @@
 {
-  "_comment": "Administrative-name standardization. Keys are lowercased/trimmed raw values as they appear in Kobo or ZiteManager; values are the single official spelling used everywhere in the dashboard. Applied server-side in api/lib/transformations.py and zite_transform.py so filters, KPIs, charts, tables, maps and exports all receive one canonical value. Only add a mapping once the merge has been reviewed — do not merge two genuinely different locations.",
+  "_comment": "Administrative-name standardization. Keys are lowercased/trimmed raw values as they appear in Kobo or ZiteManager; values are the single official spelling used everywhere in the dashboard. Applied server-side in api/lib/transformations.py and zite_transform.py so filters, KPIs, charts, tables, maps and exports all receive one canonical value. Only add a mapping once the merge has been reviewed — do not merge two genuinely different locations. Retired Kobo organisation codes are mapped here rather than in code: `pmwd` is the pre-v6 code for PMWDO (all 165 submissions are Gaalkacyo 2026-04 and 14 of them name PMWDO as the service provider; the current form uses `pmwdo`).",
   "district": {
     "mogadishu dayniile": "Daynile",
     "mogadishu daynile": "Daynile",
@@ -12,5 +12,7 @@
     "baidoa": "Baidoa"
   },
   "region": {},
-  "agency": {}
+  "agency": {
+    "pmwd": "PMWDO"
+  }
 }

@@ -266,3 +266,17 @@ def test_missing_level_and_no_site_stays_unknown_and_is_held():
     assert rec["scopeType"] is None
     assert "UNKNOWN_REPORTING_LEVEL" in rec["reasonCodes"]
     assert rec["publicationStatus"] == "quarantined"
+
+
+def test_retired_organisation_code_maps_to_its_official_label():
+    """`pmwd` is the pre-v6 code for PMWDO. Handled in the reviewed alias table,
+    not in code, so retired codes stay auditable configuration."""
+    raw = dict(SIX[34667410])
+    raw["organization_updating"] = "pmwd"
+    assert _build_clean_records([raw])[0]["reportingPartner"] == "PMWDO"
+
+
+def test_unknown_organisation_code_passes_through_rather_than_being_dropped():
+    raw = dict(SIX[34667410])
+    raw["organization_updating"] = "zzz-not-a-real-org"
+    assert _build_clean_records([raw])[0]["reportingPartner"] == "zzz-not-a-real-org"

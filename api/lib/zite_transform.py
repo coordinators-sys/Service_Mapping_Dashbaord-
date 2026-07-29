@@ -122,6 +122,16 @@ def transform_zite_records(raw_records: list[dict]) -> list[dict]:
                 "lastUpdated": updated_date,
                 "dataQualityStatus": None,  # filled by validation.compute_record_quality_status downstream
                 "dataSource": "zitemanager",
+                # The provider directory is a reference source, not an
+                # assessment: nobody "conducted" it, so reportingPartner and
+                # scopeType stay empty. It still carries an explicit terminal
+                # state so no record anywhere is left unclassified.
+                "reportingPartner": None,
+                "scopeType": None,
+                "publicationStatus": "published",
+                "qualitySeverity": "none",
+                "reasonCodes": [],
+                "qualityExplanation": None,
             }
         )
 
