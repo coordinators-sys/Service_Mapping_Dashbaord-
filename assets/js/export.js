@@ -30,8 +30,18 @@ function csvEscape(value) {
 }
 
 function recordsToCsv(records) {
-  const header = EXPORT_COLUMNS.map(([, label]) => csvEscape(label)).join(",");
-  const rows = records.map((r) => EXPORT_COLUMNS.map(([field]) => csvEscape(r[field])).join(","));
+  // Only columns the data actually carries. The payload drops fields it is not
+  // allowed to publish — site name, Site ID, coordinates, operator free text —
+  // and a fixed column list would still emit those headers, advertising columns
+  // that can never be filled. An empty "Latitude" column invites the reader to
+  // conclude the coordinate is missing for that row rather than withheld from
+  // every row.
+  const present = new Set();
+  records.forEach((r) => Object.keys(r).forEach((k) => present.add(k)));
+  const columns = EXPORT_COLUMNS.filter(([field]) => present.has(field));
+
+  const header = columns.map(([, label]) => csvEscape(label)).join(",");
+  const rows = records.map((r) => columns.map(([field]) => csvEscape(r[field])).join(","));
   return "﻿" + [header, ...rows].join("\r\n");
 }
 
