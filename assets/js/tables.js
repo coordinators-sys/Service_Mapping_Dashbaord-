@@ -288,7 +288,6 @@ function openSiteDrawer(key) {
       return a.length ? `${s}: ${a.join(", ")}` : null;
     })
     .filter(Boolean);
-  const activities = rows.filter((r) => r.activity).map((r) => `${r.sector}: ${r.activity}`);
   const reportable = available.length + missing.length;
   const coverageScore = reportable ? Math.round((available.length / reportable) * 100) : null;
   const [badgeKey] = MATCH_BADGE[first.matchStatus] || ["badge_needs_review"];
@@ -323,8 +322,6 @@ function openSiteDrawer(key) {
       <tr><td>${t("drawer_matching")}</td><td>${t(badgeKey)}${matchDistance ? ` (${matchDistance})` : ""}</td></tr>
       <tr><td>${t("drawer_last_updated")}</td><td>${lastUpdated ? lastUpdated.slice(0, 10) : "—"}</td></tr>
     </table>
-    <h3 style="font-size:0.85rem;text-transform:uppercase;color:var(--text-muted);margin-top:16px;">${t("drawer_activities")}</h3>
-    <ul>${activities.map((a) => `<li>${escapeHtml(a)}</li>`).join("") || `<li>${t("drawer_none_reported")}</li>`}</ul>
   `;
 
   document.getElementById("drawer-copy-id").addEventListener("click", (e) => {

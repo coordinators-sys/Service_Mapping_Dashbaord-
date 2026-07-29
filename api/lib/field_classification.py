@@ -59,8 +59,6 @@ PUBLIC_FIELDS = frozenset({
     "agency",
     "reportingPartner",
     "partnerType",
-    "activity",
-    "service",
     "operationalStatus",
     "scopeType",
     "reportingLevelRaw",
@@ -99,14 +97,38 @@ _EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]{2,}")
 # `0\d{8}` alone matched synthetic identifiers such as "zite--000000003".
 _PHONE = re.compile(r"(?:\+?252[\s-]?\d[\d\s-]{6,12}\d|\b0[679]\d{7,8}\b)")
 
-# Operator-entered prose. The standing rule treats free text as guilty until
-# proven innocent, and the memo permits a scrub in place of exclusion. These
-# fields are scrubbed before publication; every other field must be clean
-# already and hard-fails if it is not, because a phone number appearing in a
-# structured field means something upstream is wrong.
-FREE_TEXT_FIELDS = frozenset({"activity", "service", "reconciliationNote"})
+# EXCLUDED — operator-entered prose, dropped from every client artefact.
+#
+# Cluster Coordinator decision, 2026-07-29: exclude free text rather than scrub
+# it. The scrub reliably removes emails and phone numbers, because those have
+# shapes. A person's NAME has no shape that distinguishes it from a site name,
+# an agency name or an activity description, so scrubbing could never be more
+# than partial — and a partial control on a public dashboard is one somebody
+# eventually mistakes for a complete one.
+#
+# `activity` was populated on 13,381 records and was genuinely mixed: 455 of
+# 1,001 distinct tokens were choice codes (cccm_13, fsl_17), the other 546 were
+# typed words. `service` was populated on zero records. Neither drove a KPI;
+# `activity`'s only consumer was the site drawer.
+EXCLUDED_FREE_TEXT = frozenset({"activity", "service"})
+
+# Prose that is Cluster-authored and reviewed rather than operator-entered, so
+# it is scrubbed rather than excluded. Kept partner-tier only.
+FREE_TEXT_FIELDS = frozenset({"reconciliationNote"})
 
 REDACTED = "[redacted]"
+
+
+def drop_excluded_free_text(records: list[dict]) -> int:
+    """Remove operator free text, in place. Returns the number of values
+    dropped so the exclusion is visible in the logs rather than silent."""
+    dropped = 0
+    for record in records:
+        for key in EXCLUDED_FREE_TEXT:
+            if key in record:
+                del record[key]
+                dropped += 1
+    return dropped
 
 # Owners of a reconciliation exception must be a team, never a person.
 APPROVED_EXCEPTION_OWNERS = frozenset({

@@ -116,11 +116,15 @@ const ROUTES = ["records", "sites", "agencies", "gaps", "quality", "sectors",
 // test that skips this step is testing the server, not the exports.
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.]{2,}/;
 const PHONE_RE = /(?:\+?252[\s-]?\d[\d\s-]{6,12}\d|\b0[679]\d{7,8}\b)/g;
-const FREE_TEXT = ["activity", "service", "reconciliationNote"];
+// Mirrors the server: operator prose is dropped outright, Cluster-authored
+// prose is scrubbed.
+const EXCLUDED = ["activity", "service"];
+const FREE_TEXT = ["reconciliationNote"];
 
 function asDelivered(records) {
   return records.map((r) => {
     const out = Object.assign({}, r);
+    for (const key of EXCLUDED) delete out[key];
     for (const key of FREE_TEXT) {
       if (typeof out[key] === "string") {
         out[key] = out[key].replace(new RegExp(EMAIL_RE.source, "g"), "[redacted]")
@@ -152,28 +156,18 @@ test("no export route emits an email address or phone number", () => {
   }
 });
 
-// KNOWN GAP — awaiting a Cluster decision, reported 2026-07-29.
-//
-// The scrub removes emails and phone numbers because those have reliable
-// shapes. A PERSON'S NAME has no shape distinguishable from a site name, an
-// agency name or an activity description, so it passes through `activity` free
-// text into the record export.
-//
-// `activity` is populated on 13,381 records and is a MIXED field: 455 of 1,001
-// distinct tokens are choice codes (cccm_13, fsl_17), the other 546 are
-// operator-typed words. It cannot be validated against a controlled vocabulary
-// as it stands.
-//
-// The options are to exclude free text from client artefacts, or to review a
-// sample and accept the residual risk. Both are Cluster decisions.
-test("no export route emits a personal name in free text",
-  { todo: "names are not reliably detectable; exclude-vs-sample is a Cluster decision" }, () => {
-    const { sandbox, captured } = loadExporter();
-    runAllRoutes(sandbox, asDelivered(poisonedRecords()));
-    for (const { filename, body } of captured) {
-      assert.ok(!body.includes(PLANTED.personName), filename + " contains a personal name");
-    }
-  });
+// Operator free text is EXCLUDED from the payload entirely (Cluster
+// Coordinator, 2026-07-29), so a name typed into `activity` never reaches a
+// client at all. This was a `todo` while the decision was open; it is a real
+// assertion now, and it fails if free text is ever reinstated.
+test("no export route emits a personal name in free text", () => {
+  const { sandbox, captured } = loadExporter();
+  runAllRoutes(sandbox, asDelivered(poisonedRecords()));
+  assert.ok(captured.length > 0, "no export produced output");
+  for (const { filename, body } of captured) {
+    assert.ok(!body.includes(PLANTED.personName), filename + " contains a personal name");
+  }
+});
 
 test("no export column names a field outside the classification register", () => {
   // Each route builds its own column set by hand, so a route can reach for a

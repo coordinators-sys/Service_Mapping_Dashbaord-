@@ -157,7 +157,7 @@ const TRANSLATIONS = {
     download_menu_title: "Download data",
     methodology_btn: "Methodology",
     dl_assessments: "Assessment updates", dl_records: "Filtered service records", dl_sites: "Sites and coverage",
-    dl_agencies: "Agencies and activities", dl_gaps: "Priority service gaps", dl_quality: "Data-quality issues",
+    dl_agencies: "Agencies and coverage", dl_gaps: "Priority service gaps", dl_quality: "Data-quality issues",
 
     // Methodology (rendered in the drawer AND exported as text)
     meth_title: "Methodology & indicator definitions",
@@ -588,7 +588,7 @@ const TRANSLATIONS = {
       ["Xaddidaadaha la yaqaan", "Ma jiro kala-qaybin adeeg-adeeg (foomku wuxuu weydiiyaa qayb ahaan); noocyada bixiyeyaasha wali lama khariteynin; lakabyada halista fatahaadda/webiga wali laguma darin; ma jiro cabbir warbixineed oo xilli kasta ah."],
     ],
     dl_records: "Diiwaannada adeegga ee la shaandheeyay", dl_sites: "Goobaha iyo daboolka",
-    dl_agencies: "Hay'adaha iyo hawlaha", dl_gaps: "Baahida adeegyada degdegga ah", dl_quality: "Arrimaha tayada xogta",
+    dl_agencies: "Bixiyeyaasha iyo daboolka", dl_gaps: "Baahida adeegyada degdegga ah", dl_quality: "Arrimaha tayada xogta",
 
     ms_all: "Dhammaan", ms_n_selected: "{n} la doortay", ms_search: "Raadi…",
     ms_search_noun: "Raadi {noun}…",

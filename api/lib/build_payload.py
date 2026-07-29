@@ -22,7 +22,7 @@ from api.lib import settings
 from api.lib.indicators import coverage_from_counts
 from api.lib.kobo_client import KoboAPIError, KoboClient
 from api.lib.site_matching import get_master_site_index
-from api.lib.field_classification import assert_publishable, scrub_free_text
+from api.lib.field_classification import assert_publishable, drop_excluded_free_text, scrub_free_text
 from api.lib.public_payload import assert_no_site_identity, to_public
 from api.lib.publication import REASON_CODES, classify, evaluate, explain
 from api.lib.transformations import parse_submission
@@ -441,6 +441,9 @@ def _compact(records: list[dict]) -> list[dict]:
     # place of exclusion), then EVERYTHING is asserted clean. A personal-data
     # value surviving in a structured field is a hard failure, not something to
     # redact quietly: it means something upstream is putting it there.
+    excluded = drop_excluded_free_text(out)
+    if excluded:
+        logger.info("field-classification: excluded %d operator free-text value(s)", excluded)
     scrubbed = scrub_free_text(out)
     if scrubbed:
         logger.warning("field-classification: redacted personal data from %d free-text value(s)", scrubbed)

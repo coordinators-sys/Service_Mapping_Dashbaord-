@@ -94,7 +94,7 @@ function exportByKind(kind) {
   }
   if (kind === "agencies") {
     const rows = computeSitesByAgency(records, 100000).map((r) => ({ agency: r.agency, sitesCovered: r.sitesCovered }));
-    return downloadCsv(`cccm_agencies_and_activities_${stamp}.csv`, withMeta(rows));
+    return downloadCsv(`cccm_agencies_and_coverage_${stamp}.csv`, withMeta(rows));
   }
   if (kind === "gaps") {
     const rows = computeSiteGapProfiles(records).filter((s) => s.gapCount > 0).map((s) => ({

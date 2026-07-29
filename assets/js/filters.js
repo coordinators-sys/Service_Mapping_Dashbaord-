@@ -28,7 +28,6 @@ const filters = {
   scope: new Set(),
   pubStatus: new Set(),
   source: new Set(),
-  service: new Set(),
   coverage: new Set(),
 };
 
@@ -60,7 +59,6 @@ function filtered(excludeDimension) {
     if (filters.catchment.size && excludeDimension !== "catchment" && !filters.catchment.has(r.catchment)) return false;
     if (filters.site.size && excludeDimension !== "site" && !filters.site.has(siteKey(r))) return false;
     if (filters.sector.size && excludeDimension !== "sector" && !filters.sector.has(r.sector)) return false;
-    if (filters.service.size && excludeDimension !== "service" && !filters.service.has(r.service)) return false;
     if (filters.agency.size && excludeDimension !== "agency" && !filters.agency.has(r.agency)) return false;
     if (filters.reportingPartner.size && excludeDimension !== "reportingPartner" && !filters.reportingPartner.has(r.reportingPartner)) return false;
     if (filters.scope.size && excludeDimension !== "scope" && !filters.scope.has(r.scopeType)) return false;

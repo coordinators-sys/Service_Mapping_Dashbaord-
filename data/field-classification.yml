@@ -67,6 +67,18 @@ never_publish:
     rationale: >
       Kobo system fields that can carry free text, reviewer identity or media.
       Excluded wholesale rather than field-by-field.
+  - field: activity
+    rationale: >
+      Operator free text mixed with choice codes — 455 of 1,001 distinct tokens
+      were codes, 546 were typed words, and one carried an email address.
+      EXCLUDED rather than scrubbed (Cluster Coordinator, 2026-07-29): emails
+      and phone numbers have shapes and can be removed reliably, a person's name
+      does not. A partial control on a public dashboard eventually gets mistaken
+      for a complete one. Drove no KPI; its only consumer was the site drawer.
+  - field: service
+    rationale: >
+      Free text, populated on zero records. Excluded with `activity` so the rule
+      is "no operator prose", not "no operator prose except this one".
   - field: "site_name_new, site_name_other, *_new"
     rationale: >
       FREE TEXT. Intended for a site name the choice list lacked, but free text
@@ -122,8 +134,6 @@ public:
   - agency:            Service PROVIDER organisation. An organisation, not a person.
   - reportingPartner:  Organisation that CONDUCTED the assessment.
   - partnerType:       Organisation category.
-  - activity:          Activity description. Reviewed as organisational, not personal.
-  - service:           Service description.
   - operationalStatus: Site operational status.
   - scopeType:         Declared reporting grain.
   - reportingLevelRaw: Reporting level as submitted.

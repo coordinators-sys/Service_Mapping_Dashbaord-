@@ -26,11 +26,12 @@ from api.lib.field_classification import (
     PUBLISHED_FIELDS,
     FieldClassificationError,
     assert_publishable,
+    drop_excluded_free_text,
     personal_data_hits,
     scrub_free_text,
     unclassified_fields,
 )
-from api.lib.build_payload import _build_clean_records
+from api.lib.build_payload import _build_clean_records, _compact
 from tests.test_acted_regression import SIX
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -112,7 +113,8 @@ def test_the_refusal_names_the_field_but_never_quotes_the_value():
     "field",
     ["cfm_focal_name", "cfm_focal_email", "cfm_focal_phone", "cfm_focal_designation",
      "mobile_focal_wash", "email_focal_health", "title_focal_cccm", "respondent_phone",
-     "cfm_hotline", "_submitted_by", "site_name_new", "site_name_other"],
+     "cfm_hotline", "_submitted_by", "site_name_new", "site_name_other",
+     "activity", "service"],
 )
 def test_known_personal_fields_are_not_on_the_allowlist(field):
     """Named explicitly so that adding one back is a deliberate, visible act."""
@@ -159,12 +161,31 @@ def test_ordinary_identifiers_are_not_mistaken_for_personal_data(field, value):
 # Free text: scrubbed, not trusted.
 
 
-def test_free_text_is_scrubbed_rather_than_blocking_the_build():
-    records = [{"activity": "nutrition_1 nutrition_4 outreach@example.org"}]
-    assert scrub_free_text(records) == 1
-    assert "@" not in records[0]["activity"]
-    assert "nutrition_1" in records[0]["activity"], "only the personal part is removed"
+def test_operator_free_text_is_excluded_outright():
+    """Cluster Coordinator, 2026-07-29: exclude rather than scrub. Emails and
+    phone numbers have shapes and can be removed reliably; a person's name does
+    not, so a scrub could only ever be partial — and a partial control on a
+    public dashboard is one somebody eventually mistakes for a complete one."""
+    records = [{"district": "Baidoa", "activity": "nutrition_1 outreach@example.org", "service": "x"}]
+    assert drop_excluded_free_text(records) == 2
+    assert "activity" not in records[0]
+    assert "service" not in records[0]
     assert_publishable(records)
+
+
+def test_reinstating_operator_free_text_fails_the_build():
+    """The allowlist is the backstop: if the drop is ever removed, the gate
+    still refuses the payload rather than publishing prose."""
+    with pytest.raises(FieldClassificationError, match="activity"):
+        assert_publishable([{"district": "Baidoa", "activity": "anything at all"}])
+
+
+def test_cluster_authored_prose_is_still_scrubbed():
+    """reconciliationNote is written by the Cluster, not by an operator, so it
+    is scrubbed rather than excluded — and it is partner-tier only."""
+    records = [{"reconciliationNote": "chase with outreach@example.org"}]
+    assert scrub_free_text(records) == 1
+    assert "@" not in records[0]["reconciliationNote"]
 
 
 def test_a_phone_number_in_a_structured_field_is_a_hard_failure():
@@ -186,12 +207,21 @@ def test_every_free_text_field_is_itself_classified():
 
 
 def test_the_built_payload_passes_its_own_gate():
-    """_build_clean_records calls assert_publishable internally; this fails
-    loudly if that call is ever removed."""
-    records = _build_clean_records(list(SIX.values()))
-    assert records
-    assert unclassified_fields(records) == set()
-    assert personal_data_hits(records) == []
+    """The gate sits at the WRITE boundary (_compact), not at record
+    construction — records legitimately carry operator free text right up until
+    the moment they are serialised. This asserts the boundary is where it is
+    claimed to be, and fails loudly if the call is ever removed."""
+    raw = _build_clean_records(list(SIX.values()))
+    assert raw
+    assert any("activity" in r for r in raw), (
+        "the fixture should still carry free text BEFORE the gate — otherwise "
+        "this test proves nothing about the gate"
+    )
+    published = _compact(raw)
+    assert published
+    assert not any("activity" in r for r in published)
+    assert unclassified_fields(published) == set()
+    assert personal_data_hits(published) == []
 
 
 def test_reconciliation_owners_are_teams_not_individuals():
