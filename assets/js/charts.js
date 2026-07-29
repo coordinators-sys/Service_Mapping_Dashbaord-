@@ -591,16 +591,6 @@ function renderAgenciesBySectorChart(records) {
     },
   });
 
-  // One sentence stating what the chart shows. It helps every reader, and it is
-  // what a screen reader announces and what someone pastes into an email.
-  const summary = document.getElementById("availability-summary");
-  if (summary) {
-    const worst = [...data].filter((d) => d.notCovered > 0).sort((a, b) => b.notCovered - a.notCovered)[0];
-    const sites = data.reduce((m, d) => Math.max(m, d.covered + d.notCovered + d.unknown), 0);
-    summary.textContent = worst
-      ? t("availability_summary", { sector: worst.sector, n: formatNumber(worst.notCovered), total: formatNumber(sites) })
-      : t("availability_summary_none");
-  }
 }
 
 function renderServiceAvailabilityChart(records) {
@@ -645,6 +635,19 @@ function renderServiceAvailabilityChart(records) {
       },
     },
   });
+  // One sentence stating what the chart shows. It helps every reader, and it is
+  // what a screen reader announces and what someone pastes into an email.
+  const summary = document.getElementById("availability-summary");
+  if (summary) {
+    // `data` here is the sector coverage set (covered / notCovered / unknown).
+    // An earlier version of this block was mis-placed into the agencies chart,
+    // whose `data` has no notCovered — so it always reported "no gaps".
+    const worst = [...data].filter((d) => d.notCovered > 0).sort((a, b) => b.notCovered - a.notCovered)[0];
+    const sites = data.reduce((m, d) => Math.max(m, d.covered + d.notCovered + d.unknown), 0);
+    summary.textContent = worst
+      ? t("availability_summary", { sector: worst.sector, n: formatNumber(worst.notCovered), total: formatNumber(sites) })
+      : t("availability_summary_none");
+  }
 }
 
 function renderAgenciesByDistrictChart(records) {
