@@ -22,6 +22,7 @@ from api.lib import settings
 from api.lib.indicators import coverage_from_counts
 from api.lib.kobo_client import KoboAPIError, KoboClient
 from api.lib.site_matching import get_master_site_index
+from api.lib.field_classification import assert_publishable, scrub_free_text
 from api.lib.publication import REASON_CODES, classify, evaluate, explain
 from api.lib.transformations import parse_submission
 from api.lib.validation import compute_record_quality_status, run_all_checks
@@ -432,6 +433,17 @@ def _compact(records: list[dict]) -> list[dict]:
     out = []
     for r in records:
         out.append({k: v for k, v in r.items() if v is not None and v != "" and v != []})
+    # THE WRITE BOUNDARY. Nothing may be added to a record between this point
+    # and serialisation.
+    #
+    # Operator free text is scrubbed first (the standing rule permits a scrub in
+    # place of exclusion), then EVERYTHING is asserted clean. A personal-data
+    # value surviving in a structured field is a hard failure, not something to
+    # redact quietly: it means something upstream is putting it there.
+    scrubbed = scrub_free_text(out)
+    if scrubbed:
+        logger.warning("field-classification: redacted personal data from %d free-text value(s)", scrubbed)
+    assert_publishable(out)
     return out
 
 

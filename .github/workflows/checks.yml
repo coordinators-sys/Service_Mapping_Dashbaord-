@@ -1,0 +1,53 @@
+# Guard rail, not a pipeline (ADR-001: no bundler, keep the repo editable).
+#
+# Two jobs, both required. The data-responsibility job is separated from the
+# general test job deliberately: when it fails, the reason must be obvious from
+# the job name in the PR checks list, without opening the log.
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  data-responsibility:
+    # STANDING RULE: no personal data in any client artefact, in any tier, ever.
+    # This job is the enforcement. It fails the build; it never warns.
+    name: no personal data in any artefact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install test dependencies
+        # pytest + pyyaml only. The register is read by tests, never at runtime,
+        # so this adds nothing to the deployed function.
+        run: pip install pytest pyyaml httpx
+      - name: Field classification — payload gate
+        run: python -m pytest tests/test_field_classification.py -q
+      - name: Field classification — every export route
+        run: node --test tests/export-leak.test.cjs
+      - name: Access gate fails closed
+        run: python -m pytest tests/test_access_gate.py -q
+
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: pip install pytest pyyaml httpx
+      - name: Python
+        run: python -m pytest tests/ -q
+      - name: JavaScript
+        run: node --test "tests/*.test.cjs"

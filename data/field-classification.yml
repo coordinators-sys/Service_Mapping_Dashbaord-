@@ -1,0 +1,136 @@
+# Field sensitivity register — CCCM Somalia Service Mapping
+#
+# STANDING RULE (Cluster Coordinator, 2026-07-29): no personal data is emitted
+# to any client artefact, in any tier, ever. Authentication is not a licence to
+# carry personal data — this applies to the partner tier exactly as it applies
+# to the public tier.
+#
+# The register is OPT-IN. A field that does not appear here as `public` or
+# `partner` is never published, so forgetting to classify a new field fails
+# safe. This file is the human-readable register; the machine-enforced list is
+# PUBLISHED_FIELDS in api/lib/field_classification.py, and a test asserts the
+# two cannot drift apart.
+#
+# Classifications
+#   public        may appear in the public aggregate artefact (PR #1) and in
+#                 exports generated from it
+#   partner       may appear in the authenticated partner artefact only
+#   never-publish parsed server-side where the pipeline needs it, dropped
+#                 before serialisation; must never reach any client
+#
+# Changing a field to `public` or `partner` requires Cluster Coordinator
+# approval and a change-log entry. Adding a field defaults to never-publish and
+# requires nothing.
+
+version: 1
+effective_date: 2026-07-29
+approved_by: CCCM Cluster Somalia — Cluster Coordinator
+
+# ---------------------------------------------------------------------------
+# NEVER PUBLISH — personal data present in the Kobo source
+#
+# 52 fields, 38,962 populated values across 2,718 submissions as at 2026-07-29.
+# None of these currently reach the payload. The rule makes that permanent and
+# tested rather than a property that could silently regress.
+never_publish:
+  - field: "name_focal_*, focal_name_*, cfm_focal_name"
+    count: 12 fields
+    rationale: >
+      Names of individuals acting as sector focal points at a site. Identifies a
+      named person with a named location and a named agency — the combination
+      that makes staff targetable.
+  - field: "title_focal_*, cfm_focal_designation"
+    count: 12 fields
+    rationale: >
+      Job title attached to a named individual. Not personal data alone, but
+      re-identifying in combination with agency and site, so it travels with the
+      name it belongs to.
+  - field: "mobile_focal_*, respondent_phone, cfm_focal_phone"
+    count: 14 fields
+    rationale: Direct personal contact details for identified individuals.
+  - field: "email_focal_*, cfm_focal_email"
+    count: 12 fields
+    rationale: Direct personal contact details for identified individuals.
+  - field: cfm_hotline
+    rationale: >
+      Institutional rather than personal on inspection — 18 distinct values, all
+      3-5 digit short codes, 11 of them shared across multiple sites (one across
+      31). It is nonetheless never published: a service-mapping tool has no need
+      to carry contact details, and publishing one contact field re-opens the
+      classification argument for every future one. Parsed internally if needed;
+      never serialised.
+  - field: _submitted_by
+    rationale: >
+      Enumerator/submitter Kobo account. Identifies who was physically at a site
+      on a date.
+  - field: _geolocation, _attachments, _validation_status, _notes
+    rationale: >
+      Kobo system fields that can carry free text, reviewer identity or media.
+      Excluded wholesale rather than field-by-field.
+  - field: "site_name_new, site_name_other, *_new"
+    rationale: >
+      FREE TEXT. Intended for a site name the choice list lacked, but free text
+      is guilty until proven innocent — an enumerator may type anything,
+      including a person's name. Used server-side for site matching; the matched
+      RESULT is published, never the raw string.
+      NOTE: siteNameRaw currently carries a form-choice LABEL, not this free
+      text — see the note under `partner` below.
+
+# ---------------------------------------------------------------------------
+# PARTNER TIER — site-level detail, authenticated access only
+#
+# Not personal data, but the site-level exposure quantified on 2026-07-29:
+# 1,905 site names, 1,808 Site IDs, 1,792 coordinates, and 874 sites flagged as
+# having no protection or site-management actor. Restricted for protection
+# reasons, not privacy ones. Both controls are required; neither substitutes.
+partner:
+  - matchedSiteCode:  Approved CCCM master-site ID.
+  - matchedSiteName:  Official site name from the master list.
+  - siteCodeRaw:      Site reference as submitted, for reconciliation.
+  - siteNameRaw:      >
+      Site name. Currently sourced from the form's site choice-list LABEL
+      (data/form-sites.json), not from operator free text, so it carries no
+      typed-in content. If that ever changes, this must move to never_publish.
+  - latitude:         Site coordinates. Never in the public tier at any precision.
+  - longitude:        Site coordinates. Never in the public tier at any precision.
+  - matchStatus:      Master-list match method.
+  - matchDistanceMeters: Distance to the matched master site.
+  - dataQualityStatus:   Record-level validation outcome.
+  - reconciliationStatus: Whether an unmatched reference is being worked.
+  - reconciliationOwner:  >
+      Owning TEAM or unit, never an individual. Test-enforced against an
+      approved list so a personal name cannot be entered here.
+  - reconciliationNote:   Free text, but Cluster-authored and reviewed, not
+      operator-entered.
+  - sourceId:         Kobo submission id, for audit trace.
+  - sourceRootUuid:   Logical record key.
+  - sourceVersion:    Form version.
+  - submissionUuid:   Submission key.
+
+# ---------------------------------------------------------------------------
+# PUBLIC TIER — safe at district/catchment aggregate, subject to small-numbers
+# suppression (public_suppression_min_sites: 5) and roll-up to region below it.
+public:
+  - region:            Admin1 name.
+  - district:          Admin2 name.
+  - catchment:         Catchment label.
+  - regionRaw:         Submitted region code. NOT an OCHA P-code — see A1.
+  - districtRaw:       Submitted district code. NOT an OCHA P-code — see A1.
+  - catchmentRaw:      Submitted catchment value.
+  - sector:            Service sector.
+  - coverageStatus:    Available / confirmed gap / unknown.
+  - agency:            Service PROVIDER organisation. An organisation, not a person.
+  - reportingPartner:  Organisation that CONDUCTED the assessment.
+  - partnerType:       Organisation category.
+  - activity:          Activity description. Reviewed as organisational, not personal.
+  - service:           Service description.
+  - operationalStatus: Site operational status.
+  - scopeType:         Declared reporting grain.
+  - reportingLevelRaw: Reporting level as submitted.
+  - reportingPeriod:   Reporting cycle.
+  - reportingDate:     Submission date.
+  - lastUpdated:       Most recent report date for the unit.
+  - dataSource:        Which source system the record came from.
+  - publicationStatus: Terminal publication state.
+  - qualitySeverity:   Severity of any unresolved reference.
+  - reasonCodes:       Machine-readable data-quality reasons.
