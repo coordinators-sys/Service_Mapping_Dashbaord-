@@ -33,7 +33,23 @@ from api.lib.field_mapping import (
 )
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# AUTHORITATIVE: keyed on the Kobo FORM's p-codes — the values submissions
+# actually carry. See scripts/build_admin_reference.py for why this replaced
+# the shapefile-derived lookup (the two schemes disagree; SO2302 is Afgooye in
+# the form but "Mogadishu Dayniile" in the shapefile, so Afgooye submissions
+# were silently published as "Daynile").
+_ADMIN_REF_PATH = os.path.join(_PROJECT_ROOT, "data", "admin-reference.json")
+# Legacy shapefile-derived lookup, kept only as a fallback for p-codes the form
+# does not define, so an unknown code degrades to a name rather than vanishing.
 _PCODES_PATH = os.path.join(_PROJECT_ROOT, "data", "admin-pcodes.json")
+
+
+@lru_cache(maxsize=1)
+def _load_admin_reference() -> dict:
+    if not os.path.isfile(_ADMIN_REF_PATH):
+        return {"regions": {}, "districts": {}}
+    with open(_ADMIN_REF_PATH, encoding="utf-8") as f:
+        return json.load(f)
 
 
 @lru_cache(maxsize=1)
@@ -68,20 +84,60 @@ def canonical_name(kind: str, value: str | None) -> str | None:
 def resolve_region(pcode: str | None) -> str | None:
     if not pcode:
         return None
+    entry = _load_admin_reference()["regions"].get(pcode)
+    if entry:
+        return canonical_name("region", entry["name"])
     name = _load_pcodes()["regions"].get(pcode, pcode)
     return canonical_name("region", name)
 
 
 def resolve_district(pcode: str | None) -> tuple[str | None, str | None]:
     """Returns (district_name, region_name) — district lookup also gives us
-    its parent region, useful when only the district pcode is present."""
+    its parent region, useful when only the district pcode is present.
+
+    Resolution order: the authoritative form-derived reference first, then the
+    legacy shapefile lookup, then the raw p-code. An unrecognised p-code is
+    never dropped — it degrades to the code itself so the record stays
+    traceable and shows up as an unresolved admin value in review.
+    """
     if not pcode:
         return None, None
-    entry = _load_pcodes()["districts"].get(pcode)
-    if not entry:
-        return canonical_name("district", pcode), None
-    return canonical_name("district", entry["name"]), resolve_region(entry.get("region_code"))
+    entry = _load_admin_reference()["districts"].get(pcode)
+    if entry:
+        region = entry.get("regionName") or resolve_region(entry.get("regionCode"))
+        return canonical_name("district", entry["name"]), region
+    legacy = _load_pcodes()["districts"].get(pcode)
+    if legacy:
+        return canonical_name("district", legacy["name"]), resolve_region(legacy.get("region_code"))
+    return canonical_name("district", pcode), None
 
+
+def district_is_resolved(pcode: str | None) -> bool:
+    """True when the p-code is a known administrative unit (not a bare code
+    echoed back). Drives the UNRESOLVED_DISTRICT data-quality reason code."""
+    if not pcode:
+        return False
+    return pcode in _load_admin_reference()["districts"] or pcode in _load_pcodes()["districts"]
+
+
+
+# Controlled reporting-level vocabulary. Anything outside this map is NOT
+# coerced to a default — parse_submission returns None and the record is
+# flagged UNKNOWN_REPORTING_LEVEL downstream.
+_REPORTING_LEVEL_MAP = {
+    "district level": "district",
+    "district": "district",
+    "catchment level": "catchment",
+    "catchment": "catchment",
+    "site level": "site",
+    "site": "site",
+}
+
+
+def _normalize_reporting_level(value: str | None) -> str | None:
+    if not value:
+        return None
+    return _REPORTING_LEVEL_MAP.get(" ".join(str(value).strip().lower().split()))
 
 def find_by_suffix(raw: dict, suffix: str):
     """Returns the value of the first key in `raw` that equals `suffix` or
@@ -131,6 +187,19 @@ class ParsedSubmission:
     # submission legitimately has no site reference — it must be labelled an
     # area-level report, not treated as a failed site match.
     reporting_level: str | None
+    reporting_level_raw: str | None
+    # Lineage — every published record must be traceable to its raw source.
+    source_id: str | None            # Kobo _id
+    source_root_uuid: str | None     # meta/rootUuid (logical key across versions)
+    source_version: str | None       # __version__
+    submitted_by: str | None
+    # Raw administrative values, retained BESIDE the normalized ones so a
+    # reviewer can always see what the partner actually submitted.
+    region_pcode: str | None
+    district_pcode: str | None
+    district_resolved: bool
+    catchment_raw: str | None
+    reporting_partner: str | None
     region: str | None
     district: str | None
     reporting_period: str | None
@@ -200,9 +269,24 @@ def parse_submission(raw: dict) -> ParsedSubmission:
     lat, lon = parse_geopoint(find_by_suffix(raw, SITE_FIELD_SUFFIXES["gps"]))
 
     # Reporting level ("site" / "catchment" / "district"). Suffix-matched like
-    # every other field so group-prefix drift can't hide it.
-    level_value = find_by_suffix(raw, "level")
-    reporting_level = str(level_value).strip().lower() if level_value else None
+    # every other field so group-prefix drift can't hide it. Only the three
+    # controlled values are accepted; anything else stays raw and is flagged
+    # downstream rather than silently defaulting to site level.
+    level_value = find_by_suffix(raw, SITE_FIELD_SUFFIXES["level"])
+    reporting_level_raw = str(level_value).strip() if level_value else None
+    reporting_level = _normalize_reporting_level(reporting_level_raw)
+
+    # Reporting partner = the agency that CONDUCTED the assessment.
+    partner_value = find_by_suffix(raw, SITE_FIELD_SUFFIXES["reporting_partner"])
+    reporting_partner = str(partner_value).strip() if partner_value else None
+    if reporting_partner and reporting_partner.lower() == OTHER_SENTINEL:
+        other = find_by_suffix(raw, SITE_FIELD_SUFFIXES["reporting_partner_other"])
+        reporting_partner = str(other).strip() if other else None
+    reporting_partner = canonical_name("agency", reporting_partner)
+
+    # Catchment straight from the SOURCE (never inferred from a matched site).
+    catchment_value = find_by_suffix(raw, SITE_FIELD_SUFFIXES["catchment"])
+    catchment_raw = str(catchment_value).strip() if catchment_value else None
 
     rows: list[SectorAgencyRow] = []
     for sector_name, stem in SECTOR_DEFS:
@@ -231,6 +315,15 @@ def parse_submission(raw: dict) -> ParsedSubmission:
         site_id_raw=site_id_raw,
         site_name_raw=site_name_raw,
         reporting_level=reporting_level,
+        reporting_level_raw=reporting_level_raw,
+        source_id=str(raw.get("_id")) if raw.get("_id") is not None else None,
+        source_root_uuid=(raw.get("meta/rootUuid") or raw.get("meta/instanceID") or None),
+        source_version=raw.get("__version__"),
+        region_pcode=str(region_pcode).strip() if region_pcode else None,
+        district_pcode=str(district_pcode).strip() if district_pcode else None,
+        district_resolved=district_is_resolved(district_pcode),
+        catchment_raw=catchment_raw,
+        reporting_partner=reporting_partner,
         region=region_name,
         district=district_name,
         reporting_period=_reporting_period_from(submission_time),

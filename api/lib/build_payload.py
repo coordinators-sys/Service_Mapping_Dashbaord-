@@ -21,6 +21,7 @@ from api.lib import settings
 from api.lib.indicators import coverage_from_counts
 from api.lib.kobo_client import KoboAPIError, KoboClient
 from api.lib.site_matching import get_master_site_index
+from api.lib.publication import classify, evaluate, explain
 from api.lib.transformations import parse_submission
 from api.lib.validation import compute_record_quality_status, run_all_checks
 from api.lib.zite_client import ZiteManagerError, fetch_report
@@ -78,9 +79,57 @@ def _iso(value: dt.datetime | dt.date | None) -> str | None:
     return value.isoformat()
 
 
+def _resolve_catchment(raw_value, district):
+    """Match a submitted catchment against the district-qualified catchment
+    labels the dashboard uses ("Baidoa · CA12"). Exact code match WITHIN the
+    declared district only - never a fuzzy guess across districts, because CA
+    codes repeat (CA01 exists in Baidoa, Kismaayo and Daynile).
+    """
+    if not raw_value or not district:
+        return None
+    index = get_master_site_index(_MASTER_SITES_CSV)
+    want_code = str(raw_value).strip().upper()
+    want_district = str(district).strip().lower()
+    for site in index.sites:
+        if not site.catchment:
+            continue
+        if (site.district or "").strip().lower() != want_district:
+            continue
+        label = site.catchment.split("·")[-1].strip().upper()
+        if label == want_code or label.split("_")[0] == want_code:
+            return site.catchment
+    return None
+
+
+def _version_sort_key(raw):
+    return (str(raw.get("_submission_time") or ""),
+            str(raw.get("__version__") or ""),
+            raw.get("_id") or 0)
+
+
+def _superseded_uuids(raw_submissions):
+    """UUIDs of non-current versions.
+
+    Logical key = meta/rootUuid when present, else _uuid. The newest version
+    wins; older ones are marked superseded and RETAINED (never deleted) so the
+    audit trail survives. Re-importing the same payload is idempotent.
+    """
+    by_key = {}
+    for raw in raw_submissions:
+        key = raw.get("meta/rootUuid") or raw.get("_uuid") or raw.get("meta/instanceID")
+        if not key:
+            continue
+        cur = by_key.get(key)
+        if cur is None or _version_sort_key(raw) > _version_sort_key(cur):
+            by_key[key] = raw
+    winners = set(id(r) for r in by_key.values())
+    return set(str(r.get("_uuid")) for r in raw_submissions
+               if id(r) not in winners and r.get("_uuid"))
+
 def _build_clean_records(raw_submissions: list[dict]) -> list[dict]:
     index = get_master_site_index(_MASTER_SITES_CSV)
     records: list[dict] = []
+    superseded = _superseded_uuids(raw_submissions)
 
     for raw in raw_submissions:
         parsed = parse_submission(raw)
@@ -101,6 +150,38 @@ def _build_clean_records(raw_submissions: list[dict]) -> list[dict]:
         ):
             match_status = "area_level_report"
 
+        # --- geographic grain -------------------------------------------------
+        # Publish at the grain the partner DECLARED. Identifiers that are not
+        # relevant to that grain stay null; none are ever invented.
+        scope_type = parsed.reporting_level
+        site_reference = parsed.site_id_raw or parsed.site_name_raw
+        # Catchment comes from the SOURCE first. Reading it only from a matched
+        # site is what silently dropped CA12 from Baidoa 34224509, because a
+        # catchment-level assessment has no site to read it from.
+        catchment_raw = parsed.catchment_raw
+        catchment_resolved = None
+        if scope_type == "site" and match.site:
+            catchment_resolved = match.site.catchment
+        elif catchment_raw:
+            catchment_resolved = _resolve_catchment(catchment_raw, parsed.district)
+        published_catchment = catchment_resolved or catchment_raw
+
+        # --- validation and terminal state ------------------------------------
+        reason_codes = evaluate(
+            scope_type=scope_type,
+            district=parsed.district,
+            district_resolved=parsed.district_resolved,
+            catchment_raw=catchment_raw,
+            catchment_resolved=bool(catchment_resolved),
+            site_reference=site_reference,
+            site_matched=bool(match.site),
+            has_logical_key=bool(parsed.source_root_uuid or parsed.submission_uuid),
+        )
+        publication_status, severity = classify(reason_codes)
+        if parsed.submission_uuid in superseded:
+            publication_status, severity = "superseded", "low"
+            reason_codes = list(reason_codes) + ["SUPERSEDED_VERSION"]
+
         for row in parsed.rows:
             record = {
                 "submissionUuid": parsed.submission_uuid,
@@ -108,7 +189,21 @@ def _build_clean_records(raw_submissions: list[dict]) -> list[dict]:
                 "reportingPeriod": parsed.reporting_period,
                 "region": (match.site.region if match.site else parsed.region) or "",
                 "district": (match.site.district if match.site else parsed.district) or "",
-                "catchment": match.site.catchment if match.site else None,
+                "catchment": published_catchment,
+                "catchmentRaw": catchment_raw,
+                # --- declared grain, organisation roles, lineage, state ---
+                "scopeType": scope_type,
+                "reportingLevelRaw": parsed.reporting_level_raw,
+                "reportingPartner": parsed.reporting_partner,
+                "sourceId": parsed.source_id,
+                "sourceRootUuid": parsed.source_root_uuid,
+                "sourceVersion": parsed.source_version,
+                "districtRaw": parsed.district_pcode,
+                "regionRaw": parsed.region_pcode,
+                "publicationStatus": publication_status,
+                "qualitySeverity": severity,
+                "reasonCodes": reason_codes,
+                "qualityExplanation": "; ".join(explain(c) for c in reason_codes) or None,
                 "siteCodeRaw": parsed.site_id_raw,
                 "siteNameRaw": parsed.site_name_raw,
                 "matchedSiteCode": match.site.cccm_site_id if match.site else None,

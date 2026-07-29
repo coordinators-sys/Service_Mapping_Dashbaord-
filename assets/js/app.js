@@ -13,6 +13,7 @@ function renderAll() {
   renderPriorityGaps(records);
   renderCatchments(records);
   renderGeography(records);
+  renderAssessments(records);
   renderSiteTable(records);
   renderDataQuality(records);
   updateHeaderInfo();
@@ -72,7 +73,7 @@ async function loadData() {
   const hardTimer = setTimeout(() => controller.abort(), HARD_TIMEOUT_MS);
 
   try {
-    const [payload, districts, catchments, regions] = await Promise.all([
+    const [payload, districts, catchments, regions, partnerStatus] = await Promise.all([
       fetch("/api/service-mapping", { signal: controller.signal }).then((response) => {
         if (!response.ok) throw new Error(`API ${response.status}`);
         return response.json();
@@ -80,6 +81,7 @@ async function loadData() {
       fetch("geo/districts.geojson").then((r) => r.json()).catch(() => null),
       fetch("geo/catchments.geojson").then((r) => r.json()).catch(() => null),
       fetch("geo/regions.geojson").then((r) => r.json()).catch(() => null),
+      fetch("data/partner-update-status.json").then((r) => r.json()).catch(() => null),
     ]);
 
     state.all = payload.records || [];
@@ -88,6 +90,7 @@ async function loadData() {
     state.generatedAt = payload.generatedAt || null;
     state.source = payload.source || null;
     state.geo = { districts, catchments, regions };
+    state.partnerUpdateStatus = (partnerStatus && partnerStatus.entries) || [];
 
     if (payload.source === "no-kobo-credentials") {
       showApiError("No Kobo credentials configured on the server yet — showing an empty dashboard. Set KOBO_BASE_URL / KOBO_ASSET_UID / KOBO_API_TOKEN as environment variables.");
@@ -230,6 +233,17 @@ function setupEventListeners() {
   document.getElementById("btn-reset-map").addEventListener("click", resetMapView);
   // Catchment overview starts capped to the chart card's height; the button
   // removes/restores the cap so the full list is one click away.
+  [["btn-assessment-expand","assessment-table-scroll"],["btn-catchment-expand","catchment-table-scroll"]].forEach(([btnId,scrollId])=>{
+    const b=document.getElementById(btnId), sc=document.getElementById(scrollId);
+    if(!b||!sc||b.dataset.wired) return;
+    b.dataset.wired="1";
+    b.addEventListener("click",()=>{
+      const expanded = sc.classList.toggle("table-capped") === false;
+      b.setAttribute("aria-expanded",String(expanded));
+      b.textContent = t(expanded ? "show_less" : "show_full_list");
+      if(!expanded) sc.scrollIntoView({block:"nearest"});
+    });
+  });
   const catchExpand = document.getElementById("btn-catchment-expand");
   if (catchExpand) catchExpand.addEventListener("click", () => {
     const scroll = document.getElementById("catchment-table-scroll");
@@ -327,7 +341,7 @@ document.addEventListener("error", (e) => {
 
 // Bumped alongside the asset cache-bust query param (index.html ?v=N) so the
 // footer always names the build actually being served.
-const DASHBOARD_BUILD = "v40";
+const DASHBOARD_BUILD = "v41";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();

@@ -1,0 +1,142 @@
+"""Build data/admin-reference.json — the authoritative administrative
+reference for resolving Kobo submissions.
+
+WHY THIS EXISTS
+---------------
+Submissions encode region/district as the p-code of the *Kobo form's own
+choice list*. The previous lookup (data/admin-pcodes.json) was derived from
+the UNDP admin2 shapefile, which uses a DIFFERENT p-code scheme. Where the
+two schemes disagree, submissions were published under the wrong district —
+silently, with no error:
+
+    SO2302  form = Afgooye   shapefile = Mogadishu Dayniile -> published "Daynile"
+    SO2605  form = Doolow    shapefile = Belet Xaawo        -> published "Belet Xaawo"
+
+and 14 Banadir sub-districts had no entry at all, so they fell through to a
+raw p-code string. Authority therefore has to be the form's choice list,
+because that is what the data actually contains.
+
+NAMING AUTHORITY
+----------------
+The CCCM master site list is the naming authority for display. For each form
+p-code we take the form's label, then map it to the master list's official
+spelling where the two differ (Baydhaba -> Baidoa). Labels with no master-list
+counterpart keep the form spelling — nothing is invented.
+
+Every entry records how it was derived (`match`) so the mapping is auditable.
+
+Usage:  python scripts/build_admin_reference.py [path/to/Service_Mapping_Tool.xlsx]
+"""
+
+from __future__ import annotations
+
+import csv
+import json
+import os
+import sys
+
+import openpyxl
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_DEFAULT_FORM = os.path.join(_ROOT, "ML", "Service_Mapping_Tool_v6.xlsx")
+_MASTER = os.path.join(_ROOT, "data", "master-sites.csv")
+_ALIASES = os.path.join(_ROOT, "data", "name-aliases.json")
+_OUT = os.path.join(_ROOT, "data", "admin-reference.json")
+
+
+def _norm(value: str) -> str:
+    return " ".join(str(value or "").strip().lower().split())
+
+
+def load_form_choices(path: str) -> tuple[dict[str, str], dict[str, str], dict[str, str]]:
+    """(district pcode -> label, region pcode -> label, district pcode -> region pcode)"""
+    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    ws = wb["choices"]
+    districts: dict[str, str] = {}
+    regions: dict[str, str] = {}
+    parent: dict[str, str] = {}
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        list_name, code, label = row[0], row[1], row[2]
+        region_filter = row[4] if len(row) > 4 else None
+        if not code or not label:
+            continue
+        if list_name == "district":
+            districts[str(code).strip()] = str(label).strip()
+            if region_filter:
+                parent[str(code).strip()] = str(region_filter).strip()
+        elif list_name == "region":
+            regions[str(code).strip()] = str(label).strip()
+    return districts, regions, parent
+
+
+def main(form_path: str) -> None:
+    districts, regions, parent = load_form_choices(form_path)
+
+    master_districts, master_regions = set(), set()
+    with open(_MASTER, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if row.get("district"):
+                master_districts.add(row["district"].strip())
+            if row.get("region"):
+                master_regions.add(row["region"].strip())
+    master_by_norm = {_norm(d): d for d in master_districts}
+    region_by_norm = {_norm(r): r for r in master_regions}
+
+    with open(_ALIASES, encoding="utf-8") as f:
+        aliases = json.load(f)
+    district_alias = {_norm(k): v for k, v in aliases.get("district", {}).items()}
+    region_alias = {_norm(k): v for k, v in aliases.get("region", {}).items()}
+
+    def official(label: str, by_norm: dict, alias: dict) -> tuple[str, str]:
+        """Returns (official_name, how_it_was_matched)."""
+        key = _norm(label)
+        if key in by_norm:
+            return by_norm[key], "master_list_exact"
+        if key in alias:
+            aliased = alias[key]
+            if _norm(aliased) in by_norm:
+                return by_norm[_norm(aliased)], "alias_to_master_list"
+            return aliased, "alias_only"
+        return label, "form_label_only"
+
+    out_regions = {}
+    for code, label in sorted(regions.items()):
+        name, match = official(label, region_by_norm, region_alias)
+        out_regions[code] = {"name": name, "formLabel": label, "match": match}
+
+    out_districts = {}
+    for code, label in sorted(districts.items()):
+        name, match = official(label, master_by_norm, district_alias)
+        entry = {"name": name, "formLabel": label, "match": match}
+        region_code = parent.get(code)
+        if region_code:
+            entry["regionCode"] = region_code
+            if region_code in out_regions:
+                entry["regionName"] = out_regions[region_code]["name"]
+        out_districts[code] = entry
+
+    payload = {
+        "_comment": (
+            "Authoritative admin reference keyed on the KOBO FORM's p-codes — the "
+            "values submissions actually carry. Generated by "
+            "scripts/build_admin_reference.py from the form choice list plus the "
+            "CCCM master site list (naming authority). Regenerate whenever the form "
+            "choice list or the master list changes. Do not hand-edit."
+        ),
+        "regions": out_regions,
+        "districts": out_districts,
+    }
+    with open(_OUT, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=1, ensure_ascii=False)
+
+    counts: dict[str, int] = {}
+    for e in out_districts.values():
+        counts[e["match"]] = counts.get(e["match"], 0) + 1
+    print(f"Wrote {_OUT}")
+    print(f"  regions: {len(out_regions)}   districts: {len(out_districts)}")
+    for k, v in sorted(counts.items()):
+        print(f"    district match/{k}: {v}")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1] if len(sys.argv) > 1 else _DEFAULT_FORM)

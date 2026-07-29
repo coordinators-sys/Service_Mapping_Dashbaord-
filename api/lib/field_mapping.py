@@ -67,10 +67,23 @@ REPEAT_GROUP_SUFFIX = {
 SITE_FIELD_SUFFIXES = {
     "region_pcode": "group_general_info/region",
     "district_pcode": "group_general_info/district",
+    # Sub-District/Catchment/Neighborhood. Carries the catchment code (e.g.
+    # "CA12") for Catchment Level submissions; must be read from the SOURCE and
+    # never inferred from a matched site, or catchment-level assessments with no
+    # site lose their catchment entirely.
+    "catchment": "group_general_info/subdistrict",
     "site_name_select": "group_general_info/site_name",
     "site_name_new": "group_general_info/site_name_new",
     "site_name_other": "group_general_info/site_name_other",
     "gps": "group_general_info/GPS_device_input_002",
+    # "Agency conducting Service or Facility Mapping" — the REPORTING PARTNER
+    # that carried out the assessment. Distinct from the agency_<sector> fields
+    # inside the repeat groups, which are SERVICE PROVIDERS. Conflating the two
+    # makes it impossible to filter by who reported.
+    "reporting_partner": "organization_updating",
+    "reporting_partner_other": "organization_updating_other",
+    # Reporting level (district / catchment / site).
+    "level": "level",
 }
 
 # select-one "other" sentinel value used throughout this form.

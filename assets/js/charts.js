@@ -1350,3 +1350,83 @@ function renderDataQuality(records) {
     }
   }
 }
+
+
+// ---------------------------------------------------------------------------
+// ASSESSMENT GRAIN views. Counts here are assessments (one per submission at
+// its declared level), never sites — a district assessment is not a site, and
+// collapsing the two is what made valid area-level submissions disappear.
+function renderAssessments(records) {
+  const row = document.getElementById("assessment-kpi-row");
+  if (!row) return;
+  const assessments = assessmentsFromRecords(records);
+  const counts = assessmentCounts(assessments);
+
+  row.innerHTML = [
+    kpiCard("kpi-assessments", formatNumber(counts.assessments), t("kpi_assessments"), t("tip_assessments")),
+    kpiCard("kpi-assessed-districts", formatNumber(counts.assessedDistricts), t("kpi_assessed_districts"), t("tip_assessed_districts")),
+    kpiCard("kpi-assessed-catchments", formatNumber(counts.assessedCatchments), t("kpi_assessed_catchments"), t("tip_assessed_catchments")),
+    kpiCard("kpi-assessed-sites-grain", formatNumber(counts.assessedSites), t("kpi_assessed_sites"), t("tip_assessed_sites")),
+    kpiCard("kpi-reporting-partners", formatNumber(new Set(assessments.map((a) => a.reportingPartner).filter(Boolean)).size),
+            t("kpi_reporting_partners"), t("tip_reporting_partners")),
+    kpiCard("kpi-assessment-warnings", formatNumber(counts.withWarning), t("kpi_assessment_warnings"), t("tip_assessment_warnings"), counts.withWarning > 0),
+  ].join("");
+
+  const scopeLabel = (s) => (s ? t("scope_" + s) : t("scope_unknown"));
+  const statusBadge = (a) => {
+    if (a.publicationStatus === "published_with_warning") {
+      return `<span class="badge badge-warning" title="${escapeHtml(a.qualityExplanation || "")}">${escapeHtml(t("pub_warning"))}</span>`;
+    }
+    if (a.publicationStatus === "quarantined") {
+      return `<span class="badge badge-critical" title="${escapeHtml(a.qualityExplanation || "")}">${escapeHtml(t("pub_quarantined"))}</span>`;
+    }
+    if (a.publicationStatus === "superseded") {
+      return `<span class="badge badge-unknown">${escapeHtml(t("pub_superseded"))}</span>`;
+    }
+    return `<span class="badge badge-success">${escapeHtml(t("pub_published"))}</span>`;
+  };
+
+  const rows = assessments
+    .filter((a) => a.publicationStatus !== "superseded")
+    .sort((a, b) => String(b.assessmentDate || "").localeCompare(String(a.assessmentDate || "")));
+
+  document.getElementById("assessment-table-body").innerHTML = rows.map((a) => `
+    <tr>
+      <td>${escapeHtml(a.reportingPartner || "—")}</td>
+      <td>${escapeHtml((a.assessmentDate || "").slice(0, 10) || "—")}</td>
+      <td>${escapeHtml(a.region || "—")}</td>
+      <td>${escapeHtml(a.district || "—")}</td>
+      <td>${escapeHtml(scopeLabel(a.scopeType))}</td>
+      <td>${escapeHtml(
+        a.scopeType === "catchment" ? (a.catchment ? friendlyCatchment(a.catchment) : (a.catchmentRaw || "—"))
+        : a.scopeType === "site" ? (a.siteName || a.siteCode || "—")
+        : "—")}</td>
+      <td>${statusBadge(a)}</td>
+    </tr>`).join("")
+    || `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:20px;">${escapeHtml(t("no_assessments"))}</td></tr>`;
+
+  renderPartnerUpdateStatus();
+}
+
+// Update-cycle metadata: districts a partner confirmed unchanged. Loaded from
+// data/partner-update-status.json, NEVER inferred from the absence of a Kobo
+// submission — "no submission" and "confirmed no change" are different facts.
+function renderPartnerUpdateStatus() {
+  const body = document.getElementById("pus-table-body");
+  if (!body) return;
+  const rows = (state.partnerUpdateStatus || []).filter((r) => {
+    if (filters.reportingPartner.size && !filters.reportingPartner.has(r.reportingPartner)) return false;
+    if (filters.district.size && !filters.district.has(r.district)) return false;
+    return true;
+  });
+  const label = (s) => t(s === "confirmed_no_change" ? "pus_confirmed" : s === "conducted" ? "pus_conducted" : s === "pending" ? "pus_pending" : "pus_not_reached");
+  body.innerHTML = rows.map((r) => `
+    <tr>
+      <td>${escapeHtml(r.reportingPartner || "—")}</td>
+      <td>${escapeHtml(r.district || "—")}</td>
+      <td><span class="badge ${r.status === "conducted" ? "badge-success" : "badge-unknown"}">${escapeHtml(label(r.status))}</span></td>
+      <td>${escapeHtml(r.level ? t("scope_" + r.level) : "—")}</td>
+      <td>${escapeHtml(r.comment || "—")}</td>
+    </tr>`).join("")
+    || `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">${escapeHtml(t("no_pus"))}</td></tr>`;
+}

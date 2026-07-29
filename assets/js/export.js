@@ -81,6 +81,7 @@ function exportByKind(kind) {
   const stamp = new Date().toISOString().slice(0, 10);
   const withMeta = (rows) => exportMetaBlock() + "\r\n" + tableToCsv(rows).replace(/^﻿/, "");
   if (kind === "records") return exportFilteredRecords();
+  if (kind === "assessments") return exportAssessments();
   if (kind === "pdf") return exportExecutivePdf();
 
   if (kind === "sites") {
@@ -243,4 +244,38 @@ function exportExecutivePdf() {
   const doPrint = () => { try { win.focus(); win.print(); } catch (err) {} };
   if (win.document.readyState === "complete") setTimeout(doPrint, 250);
   else win.addEventListener("load", () => setTimeout(doPrint, 250));
+}
+
+
+// Assessment-grain export: one row per submission at its DECLARED level, so
+// district- and catchment-level assessments are never omitted for lacking a
+// site. Carries lineage (source id / root uuid) and publication state, and
+// uses exactly the same filters as the visible dashboard.
+function exportAssessments() {
+  const rows = assessmentsFromRecords(filtered())
+    .filter((a) => a.publicationStatus !== "superseded")
+    .sort((a, b) => String(b.assessmentDate || "").localeCompare(String(a.assessmentDate || "")))
+    .map((a) => ({
+      reporting_partner: a.reportingPartner || "",
+      assessment_date: (a.assessmentDate || "").slice(0, 10),
+      reporting_period: a.reportingPeriod || "",
+      assessment_scope: a.scopeType || "",
+      region: a.region || "",
+      district: a.district || "",
+      district_code_raw: a.districtRaw || "",
+      catchment: a.catchment || "",
+      catchment_raw: a.catchmentRaw || "",
+      site_code: a.siteCode || "",
+      site_name: a.siteName || "",
+      publication_status: a.publicationStatus || "",
+      quality_severity: a.qualitySeverity || "",
+      reason_codes: (a.reasonCodes || []).join(" "),
+      quality_explanation: a.qualityExplanation || "",
+      source_id: a.sourceId || "",
+      source_root_uuid: a.sourceRootUuid || "",
+      data_refreshed_at: state.generatedAt || "",
+      exported_at: new Date().toISOString(),
+    }));
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadCsv(`cccm_assessment_updates_${stamp}.csv`, tableToCsv(rows));
 }

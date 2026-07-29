@@ -21,6 +21,11 @@ const filters = {
   period: new Set(),
   sector: new Set(),
   agency: new Set(),
+  // The agency that CONDUCTED the assessment (organization_updating),
+  // kept strictly separate from `agency` = service provider.
+  reportingPartner: new Set(),
+  // Declared analytical grain: district | catchment | site.
+  scope: new Set(),
   source: new Set(),
   service: new Set(),
   coverage: new Set(),
@@ -48,6 +53,8 @@ function filtered(excludeDimension) {
     if (filters.sector.size && excludeDimension !== "sector" && !filters.sector.has(r.sector)) return false;
     if (filters.service.size && excludeDimension !== "service" && !filters.service.has(r.service)) return false;
     if (filters.agency.size && excludeDimension !== "agency" && !filters.agency.has(r.agency)) return false;
+    if (filters.reportingPartner.size && excludeDimension !== "reportingPartner" && !filters.reportingPartner.has(r.reportingPartner)) return false;
+    if (filters.scope.size && excludeDimension !== "scope" && !filters.scope.has(r.scopeType)) return false;
     if (filters.period.size && excludeDimension !== "period" && !filters.period.has(r.reportingPeriod)) return false;
     if (filters.coverage.size && excludeDimension !== "coverage" && !filters.coverage.has(r.coverageStatus)) return false;
     if (filters.source.size && excludeDimension !== "source" && !filters.source.has(r.dataSource)) return false;
@@ -107,7 +114,9 @@ const SLICER_CONFIG = [
   { dimension: "site", labelKey: "f_site", nounKey: "noun_sites", groupBy: true },
   { dimension: "period", labelKey: "f_period", nounKey: "noun_periods" },
   { dimension: "sector", labelKey: "f_sector", nounKey: "noun_sectors" },
+  { dimension: "reportingPartner", labelKey: "f_reporting_partner", nounKey: "noun_partners" },
   { dimension: "agency", labelKey: "f_agency", nounKey: "noun_agencies" },
+  { dimension: "scope", labelKey: "f_scope", nounKey: "noun_scopes" },
   { dimension: "coverage", labelKey: "f_coverage", nounKey: "noun_statuses" },
 ];
 
@@ -154,6 +163,17 @@ function buildOptions(dimension) {
     return present.map((v) => ({ value: v, label: sourceLabel(v) }));
   }
 
+  if (dimension === "scope") {
+    const present = new Set(scoped.map((r) => r.scopeType).filter(Boolean));
+    return ["district", "catchment", "site"]
+      .filter((v) => present.has(v))
+      .map((v) => ({ value: v, label: t("scope_" + v) }));
+  }
+
+  if (dimension === "reportingPartner") {
+    return uniqueSorted(scoped, "reportingPartner").map((v) => ({ value: v, label: v }));
+  }
+
   if (dimension === "coverage") {
     const present = new Set(scoped.map((r) => r.coverageStatus).filter(Boolean));
     return ["Yes", "No", "Unknown"]
@@ -198,6 +218,7 @@ function displayValue(dimension, value) {
     return present.map((v) => ({ value: v, label: sourceLabel(v) }));
   }
 
+  if (dimension === "scope") return t("scope_" + value);
   if (dimension === "coverage") {
     return t(value === "Yes" ? "chart_yes" : value === "No" ? "chart_no" : "chart_unknown");
   }

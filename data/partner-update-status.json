@@ -1,0 +1,16 @@
+{
+  "_comment": "Update-cycle metadata: what each partner reported for a cycle, INCLUDING districts confirmed as unchanged. 'confirmed_no_change' is a partner statement, not an assessment — it must never create an assessment fact, and must never be inferred from the absence of a Kobo submission. Maintained here (or imported from an approved structured source) and reviewed by the cluster.",
+  "cycle": "2026-07",
+  "entries": [
+    { "cycle": "2026-07", "reportingPartner": "ACTED", "district": "Baidoa",       "status": "conducted",           "level": "catchment", "confirmationDate": "2026-07-20", "comment": "Catchment CA12 assessed" },
+    { "cycle": "2026-07", "reportingPartner": "ACTED", "district": "Xudur",        "status": "conducted",           "level": "catchment", "confirmationDate": "2026-07-26", "comment": "Catchment not specified in submission" },
+    { "cycle": "2026-07", "reportingPartner": "ACTED", "district": "Afgooye",      "status": "conducted",           "level": "district",  "confirmationDate": "2026-07-27", "comment": "" },
+    { "cycle": "2026-07", "reportingPartner": "ACTED", "district": "Laas Caanood", "status": "conducted",           "level": "site",      "confirmationDate": "2026-07-15", "comment": "Two sites assessed separately" },
+    { "cycle": "2026-07", "reportingPartner": "ACTED", "district": "Luuq",         "status": "conducted",           "level": "district",  "confirmationDate": "2026-07-15", "comment": "" },
+    { "cycle": "2026-07", "reportingPartner": "ACTED", "district": "Kahda",        "status": "confirmed_no_change", "level": null,        "confirmationDate": "2026-07-28", "comment": "No new assessment - field team confirmed no change in partner presence or services" },
+    { "cycle": "2026-07", "reportingPartner": "ACTED", "district": "Afmadow",      "status": "confirmed_no_change", "level": null,        "confirmationDate": "2026-07-28", "comment": "No new assessment - field team confirmed no change in partner presence or services" },
+    { "cycle": "2026-07", "reportingPartner": "ACTED", "district": "Baardheere",   "status": "confirmed_no_change", "level": null,        "confirmationDate": "2026-07-28", "comment": "No new assessment - field team confirmed no change in partner presence or services" },
+    { "cycle": "2026-07", "reportingPartner": "ACTED", "district": "Garbahaarey",  "status": "confirmed_no_change", "level": null,        "confirmationDate": "2026-07-28", "comment": "No new assessment - field team confirmed no change in partner presence or services" },
+    { "cycle": "2026-07", "reportingPartner": "ACTED", "district": "Kismaayo",     "status": "confirmed_no_change", "level": null,        "confirmationDate": "2026-07-28", "comment": "No new assessment - field team confirmed no change in partner presence or services" }
+  ]
+}

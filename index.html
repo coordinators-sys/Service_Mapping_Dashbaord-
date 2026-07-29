@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="assets/css/dashboard.css?v=40" />
+  <link rel="stylesheet" href="assets/css/dashboard.css?v=41" />
 </head>
 <body>
   <header class="app-header">
@@ -77,6 +77,14 @@
             <div id="filter-agency"></div>
           </div>
           <div class="filter-field">
+            <label id="lbl-reportingPartner" data-i18n="f_reporting_partner">Reporting Partner</label>
+            <div id="filter-reportingPartner"></div>
+          </div>
+          <div class="filter-field">
+            <label id="lbl-scope" data-i18n="f_scope">Assessment Scope</label>
+            <div id="filter-scope"></div>
+          </div>
+          <div class="filter-field">
             <label id="lbl-coverage" data-i18n="f_coverage">Coverage status</label>
             <div id="filter-coverage"></div>
           </div>
@@ -106,6 +114,7 @@
       <a href="#section-agencies" class="section-nav-link" data-i18n="nav_agencies">Agencies</a>
       <a href="#section-priority" class="section-nav-link" data-i18n="nav_priority">Priority gaps</a>
       <a href="#section-catchments" class="section-nav-link" data-i18n="nav_catchments">Catchments</a>
+      <a href="#section-assessments" class="section-nav-link" data-i18n="nav_assessments">Assessments</a>
       <a href="#section-sites" class="section-nav-link" data-i18n="nav_sites">Sites</a>
     </div>
   </nav>
@@ -260,6 +269,50 @@
       </div>
     </section>
 
+    <section id="section-assessments" class="section">
+      <p class="section-purpose" data-i18n="purpose_assessments">Which partner assessed what, and at which level — district, catchment or site. Counts here are assessments, not sites.</p>
+      <div class="kpi-grid" id="assessment-kpi-row"></div>
+      <div class="card">
+        <div class="card-header"><h2 data-i18n="h_assessment_updates">Assessment updates</h2></div>
+        <div class="table-scroll table-capped" id="assessment-table-scroll">
+          <table class="data-table compact-table" id="assessment-table">
+            <thead>
+              <tr>
+                <th data-i18n="col_reporting_partner">Reporting partner</th>
+                <th data-i18n="col_assessment_date">Assessment date</th>
+                <th data-i18n="col_region">Region</th>
+                <th data-i18n="col_district">District</th>
+                <th data-i18n="col_scope">Scope</th>
+                <th data-i18n="col_catchment_site">Catchment / site</th>
+                <th data-i18n="col_publication">Status</th>
+              </tr>
+            </thead>
+            <tbody id="assessment-table-body"></tbody>
+          </table>
+        </div>
+        <button type="button" class="btn btn-light table-expand-btn" id="btn-assessment-expand"
+                aria-controls="assessment-table-scroll" aria-expanded="false" data-i18n="show_full_list">Show full list</button>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2 data-i18n="h_partner_update_status">Partner update status</h2></div>
+        <p class="section-intro" data-i18n="pus_intro">Districts a partner confirmed as unchanged are recorded here as update-cycle metadata. They are deliberately NOT counted as new assessments.</p>
+        <div class="table-scroll table-capped">
+          <table class="data-table compact-table" id="pus-table">
+            <thead>
+              <tr>
+                <th data-i18n="col_reporting_partner">Reporting partner</th>
+                <th data-i18n="col_district">District</th>
+                <th data-i18n="col_pus_status">Status</th>
+                <th data-i18n="col_scope">Level</th>
+                <th data-i18n="col_pus_comment">Comment</th>
+              </tr>
+            </thead>
+            <tbody id="pus-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <section id="section-sites" class="section">
       <div class="card">
         <div class="card-header sites-table-header">
@@ -359,6 +412,7 @@
     <h2 data-i18n="download_menu_title">Download data</h2>
     <div class="download-menu">
       <button class="btn btn-primary btn-block" data-export="pdf" data-i18n="dl_pdf">Executive summary (PDF)</button>
+      <button class="btn btn-light btn-block" data-export="assessments" data-i18n="dl_assessments">Assessment updates</button>
       <button class="btn btn-light btn-block" data-export="records" data-i18n="dl_records">Filtered service records</button>
       <button class="btn btn-light btn-block" data-export="sites" data-i18n="dl_sites">Sites and coverage</button>
       <button class="btn btn-light btn-block" data-export="sectors" data-i18n="dl_sectors">Sector summary</button>
@@ -373,14 +427,14 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF" crossorigin="anonymous"></script>
-  <script src="assets/js/translations.js?v=40"></script>
-  <script src="assets/js/multiselect.js?v=40"></script>
-  <script src="assets/js/filters.js?v=40"></script>
-  <script src="assets/js/semantic.js?v=40"></script>
-  <script src="assets/js/charts.js?v=40"></script>
-  <script src="assets/js/maps.js?v=40"></script>
-  <script src="assets/js/tables.js?v=40"></script>
-  <script src="assets/js/export.js?v=40"></script>
-  <script src="assets/js/app.js?v=40"></script>
+  <script src="assets/js/translations.js?v=41"></script>
+  <script src="assets/js/multiselect.js?v=41"></script>
+  <script src="assets/js/filters.js?v=41"></script>
+  <script src="assets/js/semantic.js?v=41"></script>
+  <script src="assets/js/charts.js?v=41"></script>
+  <script src="assets/js/maps.js?v=41"></script>
+  <script src="assets/js/tables.js?v=41"></script>
+  <script src="assets/js/export.js?v=41"></script>
+  <script src="assets/js/app.js?v=41"></script>
 </body>
 </html>
