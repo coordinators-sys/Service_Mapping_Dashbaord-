@@ -719,7 +719,10 @@ function renderOverview(records) {
   const unknownSites = siteProfiles.filter((s) => s.unknownCount > 0).length;
   const denom = (n) => t("kpi_of", { a: formatNumber(n), b: formatNumber(assessed) });
 
-  document.getElementById("kpi-row").innerHTML = [
+  renderBigFigures(metrics, siteProfiles, records);
+
+  const kpiRow = document.getElementById("kpi-row");
+  if (kpiRow) kpiRow.innerHTML = [
     kpiCard("kpi-assessed", formatNumber(metrics.matchedMasterSites), t("kpi_sites_assessed"), t("tip_sites_assessed")),
     kpiCard("kpi-agencies", formatNumber(metrics.activeServiceProviders), t("kpi_active_agencies"), t("tip_active_agencies")),
     kpiCard("kpi-regions", formatNumber(regions.size), t("kpi_regions"), t("tip_regions")),
@@ -743,6 +746,7 @@ function renderOverview(records) {
 // cluster's own icons. Clicking cross-filters the whole dashboard (ctrl/cmd
 // -click for multi-select), same semantics as clicking a chart bar.
 function renderSectorChips(sectorCoverage) {
+  if (!document.getElementById("sector-chips")) return;
   const container = document.getElementById("sector-chips");
   container.innerHTML = sectorCoverage
     .map((s) => {
@@ -859,17 +863,14 @@ function renderPrioritySitesTable() {
   if (viewAll) viewAll.addEventListener("click", () => { _priorityShowAll = !_priorityShowAll; renderPrioritySitesTable(); });
 }
 
+// The Coverage section dissolved in the July 2026 restructure: the sorted
+// three-state availability chart and the trend line moved to the Overview
+// (they ARE the story), and the duplicates — "coverage by sector", "agencies
+// by sector", the per-agency charts and the matrix — were cut. Same facts,
+// once each.
 function renderCoverage(records) {
-  const sortMode = document.getElementById("sort-sector-bar").value;
-  renderSectorBarChart(records, sortMode);
-  renderCoverageTrendChart(records);
-  renderAgenciesBySectorChart(records);
   renderServiceAvailabilityChart(records);
-}
-
-function renderAgencies(records) {
-  renderAgenciesByDistrictChart(records);
-  renderSitesByAgencyChart(records);
+  renderCoverageTrendChart(records);
 }
 
 // ---------- Catchment analysis ----------
@@ -972,6 +973,8 @@ function renderUnresolvedCatchments(records) {
 }
 
 function renderCatchments(records) {
+  // Cluster-team section: absent from the public layout.
+  if (!document.getElementById("catchment-kpi-row")) return;
   renderUnresolvedCatchments(records);
   const data = computeCatchmentAnalysis(records);
   const kpiRow = document.getElementById("catchment-kpi-row");
@@ -1576,4 +1579,197 @@ function renderPartnerUpdateStatus() {
       <td>${escapeHtml(r.comment || "—")}</td>
     </tr>`).join("")
     || `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">${escapeHtml(t("no_pus"))}</td></tr>`;
+}
+
+
+// ---------------------------------------------------------------------------
+// July 2026 restructure: the Overview carries the whole story on its own.
+
+// Four figures, each a fact plus the context that makes it mean something.
+// A number on its own is not information.
+function renderBigFigures(metrics, siteProfiles, records) {
+  const row = document.getElementById("big-figure-row");
+  if (!row) return;
+
+  const assessed = siteProfiles.length;
+  const gapSites = siteProfiles.filter((s) => s.gapCount > 0).length;
+  const critical = siteProfiles.filter((s) => s.isCritical).length;
+  const districts = new Set(records.map((r) => r.district).filter(Boolean)).size;
+  const regions = new Set(records.map((r) => r.region).filter(Boolean)).size;
+
+  const coverage = computeSectorCoverage(records);
+  const widest = [...coverage].sort((a, b) => b.notCovered - a.notCovered)[0];
+
+  const figure = (id, value, label, sub) => `
+    <div class="kpi-card big-figure" id="${id}">
+      <div class="kpi-value">${value}</div>
+      <div class="kpi-label">${label}</div>
+      <div class="big-figure-sub">${sub}</div>
+    </div>`;
+
+  row.innerHTML = [
+    figure("bf-assessed", formatNumber(assessed), t("fig_assessed"),
+      t("fig_assessed_sub", { d: formatNumber(districts), r: formatNumber(regions) })),
+    figure("bf-gaps", formatNumber(gapSites), t("fig_gaps"),
+      t("fig_gaps_sub", { pct: assessed ? Math.round((gapSites / assessed) * 100) : 0 })),
+    figure("bf-widest", widest && widest.notCovered ? escapeHtml(widest.sector) : "—", t("fig_widest"),
+      widest && widest.notCovered ? t("fig_widest_sub", { n: formatNumber(widest.notCovered) }) : t("fig_widest_none")),
+    figure("bf-priority", formatNumber(critical), t("fig_priority"), t("fig_priority_sub")),
+  ].join("");
+}
+
+// Sector x district grid — the review's replacement for eight scrolled
+// per-sector profile blocks: the same two facts (what is missing, where) in
+// one comparable screen. Cells carry text as well as colour.
+function renderSectorDistrictGrid(records) {
+  const container = document.getElementById("sector-district-grid");
+  if (!container) return;
+
+  const cells = officialSiteSectorCells(records);
+  const siteDistrict = new Map();
+  records.forEach((r) => {
+    const key = siteKey(r);
+    if (key && r.district && !siteDistrict.has(key)) siteDistrict.set(key, r.district);
+  });
+
+  const byDistrict = new Map();
+  for (const c of cells) {
+    const district = siteDistrict.get(c.site);
+    if (!district) continue;
+    let entry = byDistrict.get(district);
+    if (!entry) { entry = {}; byDistrict.set(district, entry); }
+    let cell = entry[c.sector];
+    if (!cell) { cell = { covered: 0, gap: 0 }; entry[c.sector] = cell; }
+    if (c.status === "Yes") cell.covered += 1;
+    else if (c.status === "No") cell.gap += 1;
+  }
+
+  // Worst districts first: the reader is looking for where to act.
+  const rows = Array.from(byDistrict.entries())
+    .map(([district, sectors]) => {
+      let covered = 0, gap = 0;
+      Object.values(sectors).forEach((c) => { covered += c.covered; gap += c.gap; });
+      return { district, sectors, gapShare: covered + gap ? gap / (covered + gap) : 0 };
+    })
+    .sort((a, b) => b.gapShare - a.gapShare);
+
+  const cellHtml = (c) => {
+    if (!c || c.covered + c.gap === 0) {
+      return `<td class="sdg-cell sdg-none" title="${escapeHtml(t("sdg_not_reported"))}">—</td>`;
+    }
+    const pct = Math.round((c.covered / (c.covered + c.gap)) * 100);
+    const cls = pct >= 70 ? "sdg-good" : pct >= 30 ? "sdg-mid" : "sdg-bad";
+    return `<td class="sdg-cell ${cls}" title="${c.covered} ${escapeHtml(t("chart_available"))}, ${c.gap} ${escapeHtml(t("chart_confirmed_gap"))}">${pct}%</td>`;
+  };
+
+  container.innerHTML = `
+    <table class="data-table compact-table sdg-table">
+      <thead><tr>
+        <th data-i18n="col_district">${t("col_district")}</th>
+        ${SECTORS.map((sec) => `<th class="sdg-head" title="${escapeHtml(sec)}">${sectorIcon(sec, 16)}<span class="sdg-head-label">${escapeHtml(sec)}</span></th>`).join("")}
+      </tr></thead>
+      <tbody>
+        ${rows.map((r) => `<tr data-district="${escapeHtml(r.district)}">
+          <td><strong>${escapeHtml(r.district)}</strong></td>
+          ${SECTORS.map((sec) => cellHtml(r.sectors[sec])).join("")}
+        </tr>`).join("")}
+      </tbody>
+    </table>`;
+  container.querySelectorAll("tr[data-district]").forEach((tr) => {
+    tr.addEventListener("click", (evt) => toggleFilterValue("district", tr.dataset.district, evt.ctrlKey || evt.metaKey));
+  });
+}
+
+// 3W: one searchable table replacing four charts and a heatmap nobody could
+// scan. People look UP one agency or one district; they do not read a matrix.
+function computeThreeW(records) {
+  const byKey = new Map();
+  records.forEach((r) => {
+    if (!r.agency || !r.district || r.coverageStatus !== "Yes") return;
+    const key = r.agency + "|" + r.district;
+    let entry = byKey.get(key);
+    if (!entry) {
+      entry = { agency: r.agency, district: r.district, sectors: new Set(), sites: new Set(), lastReported: null };
+      byKey.set(key, entry);
+    }
+    if (r.sector) entry.sectors.add(r.sector);
+    const site = siteKey(r);
+    if (site) entry.sites.add(site);
+    if (r.lastUpdated && (!entry.lastReported || r.lastUpdated > entry.lastReported)) entry.lastReported = r.lastUpdated;
+  });
+  return Array.from(byKey.values()).sort((a, b) =>
+    a.agency.localeCompare(b.agency) || a.district.localeCompare(b.district));
+}
+
+function renderThreeW(records) {
+  const container = document.getElementById("threew-container");
+  if (!container) return;
+  const term = ((document.getElementById("threew-search") || {}).value || "").toLowerCase().trim();
+
+  const all = computeThreeW(records);
+  const rows = term
+    ? all.filter((r) => (r.agency + " " + r.district + " " + Array.from(r.sectors).join(" ")).toLowerCase().includes(term))
+    : all;
+
+  container.innerHTML = `
+    <table class="data-table compact-table">
+      <thead><tr>
+        <th data-i18n="col_agency">${t("col_agency")}</th>
+        <th data-i18n="col_district">${t("col_district")}</th>
+        <th data-i18n="col_sectors_list">${t("col_sectors_list")}</th>
+        <th data-i18n="col_sites_active">${t("col_sites_active")}</th>
+        <th data-i18n="col_last_report">${t("col_last_report")}</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map((r) => `<tr>
+          <td><strong>${escapeHtml(r.agency)}</strong></td>
+          <td>${escapeHtml(r.district)}</td>
+          <td>${Array.from(r.sectors).sort().map((sec) => `<span class="drawer-sector">${sectorIcon(sec, 13)} ${escapeHtml(sec)}</span>`).join(" ")}</td>
+          <td>${r.sites.size}</td>
+          <td>${r.lastReported ? escapeHtml(String(r.lastReported).slice(0, 10)) : "—"}</td>
+        </tr>`).join("") || `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">${escapeHtml(t("no_3w_rows"))}</td></tr>`}
+      </tbody>
+    </table>`;
+  const count = document.getElementById("threew-count");
+  if (count) count.textContent = t("threew_count", { shown: rows.length.toLocaleString(), total: all.length.toLocaleString() });
+
+  renderSingleProviderList(records);
+}
+
+// Single-provider sectors: the operational risk a donor can actually act on.
+function renderSingleProviderList(records) {
+  const container = document.getElementById("single-provider-container");
+  if (!container) return;
+
+  const providers = new Map(); // district|sector -> Set(agency)
+  records.forEach((r) => {
+    if (!r.agency || !r.district || !r.sector || r.coverageStatus !== "Yes") return;
+    const key = r.district + "|" + r.sector;
+    if (!providers.has(key)) providers.set(key, new Set());
+    providers.get(key).add(r.agency);
+  });
+
+  const rows = Array.from(providers.entries())
+    .filter(([, set]) => set.size === 1)
+    .map(([key, set]) => {
+      const [district, sector] = key.split("|");
+      return { district, sector, agency: Array.from(set)[0] };
+    })
+    .sort((a, b) => a.district.localeCompare(b.district) || a.sector.localeCompare(b.sector));
+
+  container.innerHTML = `
+    <table class="data-table compact-table">
+      <thead><tr>
+        <th data-i18n="col_district">${t("col_district")}</th>
+        <th data-i18n="col_sector">${t("col_sector")}</th>
+        <th data-i18n="col_sole_provider">${t("col_sole_provider")}</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map((r) => `<tr>
+          <td>${escapeHtml(r.district)}</td>
+          <td>${sectorIcon(r.sector, 13)} ${escapeHtml(r.sector)}</td>
+          <td><strong>${escapeHtml(r.agency)}</strong></td>
+        </tr>`).join("") || `<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px;">${escapeHtml(t("no_single_provider"))}</td></tr>`}
+      </tbody>
+    </table>`;
 }

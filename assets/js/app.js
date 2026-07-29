@@ -13,10 +13,9 @@ function renderAll() {
   const sections = [
     ["completeness", renderCompleteness],
     ["overview", renderOverview],
-    ["gap profiles", renderGapProfiles],
     ["coverage", renderCoverage],
-    ["agencies", renderAgencies],
-    ["agency matrix", renderAgencyMatrix],
+    ["gaps grid", renderSectorDistrictGrid],
+    ["3w", renderThreeW],
     ["priority gaps", renderPriorityGaps],
     ["catchments", renderCatchments],
     ["geography", renderGeography],
@@ -137,6 +136,27 @@ function applyPublicTier() {
   if (grid) grid.classList.remove("chart-grid-equal");
 }
 
+function isClusterView() {
+  return new URLSearchParams(location.search).get("view") === "cluster";
+}
+
+// The cluster-team view is this same page with the internal sections left in,
+// reached by ?view=cluster. Everything on it is already public-tier data — the
+// separation is presentational, per the July 2026 structure review: reporting
+// completeness, partner update status and QA content are how the Cluster works,
+// not what a donor or the Chief of Mission opens the page to read.
+function applyViewMode() {
+  if (isClusterView()) {
+    document.body.classList.add("cluster-view");
+    const banner = document.getElementById("restriction-banner");
+    if (banner) banner.textContent = t("cluster_view_banner");
+    return;
+  }
+  // REMOVED, not hidden: a hidden section still renders, still lands in the
+  // accessibility tree, and still shows if a stylesheet fails.
+  document.querySelectorAll(".cluster-only").forEach((el) => el.remove());
+}
+
 function showApiError(message) {
   const banner = document.getElementById("api-error-banner");
   banner.innerHTML = "";
@@ -182,6 +202,7 @@ const SLOW_LOAD_NOTICE_MS = 8000;
 const HARD_TIMEOUT_MS = 25000;
 
 async function loadData() {
+  applyViewMode();
   setLoading(true);
   const loadingBanner = document.getElementById("loading-banner");
   loadingBanner.classList.remove("slow");
@@ -191,11 +212,27 @@ async function loadData() {
   const hardTimer = setTimeout(() => controller.abort(), HARD_TIMEOUT_MS);
 
   try {
+    // The pre-built payload is a static file on the CDN: a few hundred ms from
+    // the nearest edge, no server work, no cold start. The serverless endpoint
+    // is the FALLBACK, kept because it can always rebuild live if the daily
+    // refresh has not run or the static file is missing. Freshness is not
+    // checked here — the stale banner already judges generatedAt, and old data
+    // with a visible warning beats a 14-second wait for identical data.
+    const fetchPayload = () =>
+      fetch("data/public-payload.json", { signal: controller.signal })
+        .then((response) => {
+          if (!response.ok) throw new Error(`static ${response.status}`);
+          return response.json();
+        })
+        .catch(() =>
+          fetch("/api/service-mapping", { signal: controller.signal }).then((response) => {
+            if (!response.ok) throw new Error(`API ${response.status}`);
+            return response.json();
+          })
+        );
+
     const [payload, districts, catchments, regions, partnerStatus] = await Promise.all([
-      fetch("/api/service-mapping", { signal: controller.signal }).then((response) => {
-        if (!response.ok) throw new Error(`API ${response.status}`);
-        return response.json();
-      }),
+      fetchPayload(),
       fetch("geo/districts.geojson").then((r) => r.json()).catch(() => null),
       fetch("geo/catchments.geojson").then((r) => r.json()).catch(() => null),
       fetch("geo/regions.geojson").then((r) => r.json()).catch(() => null),
@@ -366,7 +403,6 @@ function setupEventListeners() {
   // onChange callbacks already update `filters` and call applyFilters().
   document.getElementById("btn-reset-filters").addEventListener("click", resetFilters);
   setupFilterDrawer();
-  document.getElementById("sort-sector-bar").addEventListener("change", () => renderCoverage(filtered()));
   document.getElementById("heatmap-row-level") && document.getElementById("heatmap-row-level").addEventListener("change", () => renderAgencies(filtered()));
   document.getElementById("map-mode").addEventListener("change", () => renderGeography(filtered()));
   const mapLayer = document.getElementById("map-layer");
@@ -374,7 +410,16 @@ function setupEventListeners() {
   document.getElementById("btn-reset-map").addEventListener("click", resetMapView);
   // Catchment overview starts capped to the chart card's height; the button
   // removes/restores the cap so the full list is one click away.
-  [["btn-assessment-expand","assessment-table-scroll"],["btn-catchment-expand","catchment-table-scroll"]].forEach(([btnId,scrollId])=>{
+  const threewSearch = document.getElementById("threew-search");
+  if (threewSearch) {
+    let timer = null;
+    threewSearch.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => renderThreeW(filtered()), 200);
+    });
+  }
+
+  [["btn-assessment-expand","assessment-table-scroll"],["btn-catchment-expand","catchment-table-scroll"],["btn-sdg-expand","sector-district-grid"]].forEach(([btnId,scrollId])=>{
     const b=document.getElementById(btnId), sc=document.getElementById(scrollId);
     if(!b||!sc||b.dataset.wired) return;
     b.dataset.wired="1";
@@ -482,7 +527,7 @@ document.addEventListener("error", (e) => {
 
 // Bumped alongside the asset cache-bust query param (index.html ?v=N) so the
 // footer always names the build actually being served.
-const DASHBOARD_BUILD = "v57";
+const DASHBOARD_BUILD = "v58";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();

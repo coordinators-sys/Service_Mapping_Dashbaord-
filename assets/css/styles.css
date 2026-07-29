@@ -79,3 +79,38 @@ body[data-tier="public"] .site-identity-only { display: none; }
 /* One-sentence plain-language reading of a chart, for every reader and for
    screen readers and copy-paste alike. */
 .chart-summary { margin: 8px 0 0; font-size: 0.84rem; color: var(--text-muted); line-height: 1.5; }
+
+
+/* ---------------------------------------------------------------------------
+   July 2026 restructure. */
+
+/* Four big figures: a fact plus the context that makes it mean something. */
+.big-figures { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.big-figure .kpi-value { font-size: 2.1rem; line-height: 1.1; }
+.big-figure .kpi-label { font-size: 0.9rem; text-transform: none; letter-spacing: 0; font-weight: 600; }
+.big-figure-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; line-height: 1.45; }
+
+/* Sector x district grid: text as well as colour, always. */
+.sdg-table th.sdg-head { text-align: center; }
+.sdg-head-label { display: none; }
+.sdg-cell { text-align: center; font-variant-numeric: tabular-nums; cursor: pointer; }
+.sdg-good { background: rgba(58, 141, 104, 0.18); }
+.sdg-mid { background: rgba(233, 162, 59, 0.20); }
+.sdg-bad { background: rgba(217, 83, 79, 0.20); font-weight: 600; }
+.sdg-none { color: var(--text-muted); background: var(--bg); }
+
+/* Folded filters. */
+.more-filters { margin-top: 8px; }
+.more-filters > summary { cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--primary);
+  padding: 6px 0; list-style: none; }
+.more-filters > summary::-webkit-details-marker { display: none; }
+.more-filters > summary::before { content: "▸ "; }
+.more-filters[open] > summary::before { content: "▾ "; }
+
+/* 3W header: title + search on one line, wrapping on small screens. */
+.threew-header { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+
+/* Cluster-team view marker. */
+body.cluster-view #restriction-banner { background: #fdf0e8; color: #8a4a2a; }
+[data-theme="dark"] body.cluster-view #restriction-banner,
+body.cluster-view[data-theme="dark"] #restriction-banner { background: #3a2a1e; color: var(--warning); }

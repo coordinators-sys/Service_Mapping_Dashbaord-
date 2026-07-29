@@ -378,6 +378,11 @@ function applyFilters() {
 // section hash (from the sticky nav's scroll-spy) is preserved untouched.
 function updateUrlFromFilters() {
   const params = new URLSearchParams();
+  // The view mode is part of the address, not of the filter state — losing it
+  // on the first filter click would bounce a cluster-team user back to the
+  // public layout mid-session.
+  const view = new URLSearchParams(location.search).get("view");
+  if (view) params.set("view", view);
   SLICER_CONFIG.forEach(({ dimension }) => {
     if (filters[dimension].size) params.set(dimension, Array.from(filters[dimension]).join(","));
   });
