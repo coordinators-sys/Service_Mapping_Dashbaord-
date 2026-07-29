@@ -15,6 +15,7 @@ import re
 import threading
 import time
 from collections import Counter
+from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor
 
 from api.lib import settings
@@ -77,6 +78,27 @@ def _iso(value: dt.datetime | dt.date | None) -> str | None:
     if value is None:
         return None
     return value.isoformat()
+
+
+@lru_cache(maxsize=1)
+def _reconciliation_register() -> dict:
+    """raw site reference -> its row in data/site-reconciliation.json.
+
+    The register is the audit trail for site references that carry no approved
+    master-site ID. Unresolved rows attach an owner and a status to the record
+    so the exception is assigned to somebody rather than merely displayed;
+    resolved rows carry an approved official ID and are applied as aliases.
+    """
+    path = os.path.join(_PROJECT_ROOT, "data", "site-reconciliation.json")
+    if not os.path.isfile(path):
+        return {}
+    with open(path, encoding="utf-8") as fh:
+        data = json.load(fh)
+    return {
+        str(e.get("raw_site_reference", "")).strip().upper(): e
+        for e in data.get("entries", [])
+        if e.get("raw_site_reference")
+    }
 
 
 def _resolve_catchment(raw_value, district):
@@ -188,6 +210,10 @@ def _build_clean_records(raw_submissions: list[dict]) -> list[dict]:
             publication_status, severity = "superseded", "low"
             reason_codes = list(reason_codes) + ["SUPERSEDED_VERSION"]
 
+        reconciliation = None
+        if "UNMATCHED_MASTER_SITE" in reason_codes and parsed.site_id_raw:
+            reconciliation = _reconciliation_register().get(str(parsed.site_id_raw).strip().upper())
+
         for row in parsed.rows:
             record = {
                 "submissionUuid": parsed.submission_uuid,
@@ -215,6 +241,12 @@ def _build_clean_records(raw_submissions: list[dict]) -> list[dict]:
                 "matchedSiteCode": match.site.cccm_site_id if match.site else None,
                 "matchedSiteName": match.site.site_name if match.site else None,
                 "matchStatus": match_status,
+                # Ownership of an unmatched site reference. Present only when
+                # the reference is genuinely unresolved, so a row in the data
+                # quality view always names who has to act on it.
+                "reconciliationStatus": reconciliation.get("status") if reconciliation else None,
+                "reconciliationOwner": reconciliation.get("owner") if reconciliation else None,
+                "reconciliationNote": reconciliation.get("resolution_note") if reconciliation else None,
                 "matchDistanceMeters": match.match_distance_meters,
                 "latitude": match.site.latitude if match.site else parsed.latitude,
                 "longitude": match.site.longitude if match.site else parsed.longitude,

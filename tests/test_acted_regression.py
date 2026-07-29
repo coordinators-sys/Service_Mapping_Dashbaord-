@@ -170,7 +170,7 @@ def test_the_two_laas_caanood_sites_stay_distinct(built):
         assert rec["scopeType"] == "site"
         assert rec["district"] == "Laas Caanood"
         # Unresolved against the master list, but retained and visible.
-        assert "UNRESOLVED_SITE" in rec["reasonCodes"]
+        assert "UNMATCHED_MASTER_SITE" in rec["reasonCodes"]
         assert rec["publicationStatus"] == "published_with_warning"
 
 

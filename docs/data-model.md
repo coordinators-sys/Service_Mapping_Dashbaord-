@@ -115,7 +115,7 @@ Severity → policy: `low` publish · `medium` publish with warning · `high` an
 `critical` quarantine. Codes and explanations live in `api/lib/publication.py`.
 
 Key codes: `MISSING_REQUIRED_CATCHMENT`, `UNRESOLVED_CATCHMENT`,
-`UNRESOLVED_SITE`, `MISSING_SITE_REFERENCE`, `UNKNOWN_REPORTING_LEVEL`,
+`UNMATCHED_MASTER_SITE`, `MISSING_SITE_REFERENCE`, `UNKNOWN_REPORTING_LEVEL`,
 `UNRESOLVED_DISTRICT`, `MISSING_DISTRICT`, `NO_LOGICAL_KEY`,
 `REPORTING_LEVEL_INFERRED`, `SUPERSEDED_VERSION`.
 

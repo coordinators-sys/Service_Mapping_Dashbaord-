@@ -1,0 +1,60 @@
+{
+ "_comment": "Version-controlled register of site references that could not be tied to an approved CCCM master-site ID. One row per raw reference. A row exists ONLY to record evidence and ownership: it never asserts a match. To resolve a row, set official_site_id + match_method + confidence + approved_by + valid_from and change status to 'resolved'; the pipeline then treats it as an approved alias. Rows left 'unresolved' keep their assessments published_with_warning and excluded from matched-site coverage and mapping. Never fill official_site_id without evidence recorded in evidence[].",
+ "mapping_rule_version": "2026-07-29.1",
+ "entries": [
+  {
+   "raw_site_reference": "ACTEDSO1401_55",
+   "district_id": "SO1401",
+   "district": "Laas Caanood",
+   "form_label": "Adhi Cadeeye",
+   "official_site_id": null,
+   "match_method": null,
+   "confidence": null,
+   "status": "unresolved",
+   "owner": "CCCM Cluster Information Management",
+   "first_detected": "2026-07-15",
+   "last_checked": "2026-07-29",
+   "approved_by": null,
+   "valid_from": null,
+   "valid_to": null,
+   "evidence": [
+    "exact official site ID: no CCCM master-site ID equals this reference",
+    "approved alternate / legacy ID: absent from data/site-code-crosswalk.json (517 entries)",
+    "form choice list: code resolves to the site name 'Adhi Cadeeye' in district SO1401, with no catchment",
+    "exact normalized name within Laas Caanood: no match among the district's 26 approved master sites",
+    "alternative_names within district: no match",
+    "nationwide name check: 'Adhi Cadeeye' does not appear in the master list under any district",
+    "coordinate-assisted matching: not possible, the submission carries no GPS point",
+    "conclusion: no trusted match exists; this is most likely an ACTED-identified site not yet registered through the Site ID Generator"
+   ],
+   "resolution_note": "Requires CCCM master-site registration or an authoritative mapping from ACTED. Do not assign a master-site ID without one."
+  },
+  {
+   "raw_site_reference": "ACTEDSO1401_56",
+   "district_id": "SO1401",
+   "district": "Laas Caanood",
+   "form_label": "Guumays",
+   "official_site_id": null,
+   "match_method": null,
+   "confidence": null,
+   "status": "unresolved",
+   "owner": "CCCM Cluster Information Management",
+   "first_detected": "2026-07-15",
+   "last_checked": "2026-07-29",
+   "approved_by": null,
+   "valid_from": null,
+   "valid_to": null,
+   "evidence": [
+    "exact official site ID: no CCCM master-site ID equals this reference",
+    "approved alternate / legacy ID: absent from data/site-code-crosswalk.json (517 entries)",
+    "form choice list: code resolves to the site name 'Guumays' in district SO1401, with no catchment",
+    "exact normalized name within Laas Caanood: no match among the district's 26 approved master sites",
+    "alternative_names within district: no match",
+    "nationwide name check: 'Guumays' does not appear in the master list under any district",
+    "coordinate-assisted matching: not possible, the submission carries no GPS point",
+    "conclusion: no trusted match exists; this is most likely an ACTED-identified site not yet registered through the Site ID Generator"
+   ],
+   "resolution_note": "Requires CCCM master-site registration or an authoritative mapping from ACTED. Do not assign a master-site ID without one."
+  }
+ ]
+}

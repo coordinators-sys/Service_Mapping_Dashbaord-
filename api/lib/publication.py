@@ -38,11 +38,11 @@ REASON_CODES: dict[str, tuple[str, str]] = {
         "The submitted catchment value could not be matched to a known catchment "
         "in this district. The raw value is retained for review.",
     ),
-    "UNRESOLVED_SITE": (
+    "UNMATCHED_MASTER_SITE": (
         "medium",
-        "Reported at site level, but the submitted site reference does not match "
-        "the CCCM master site list. The record is retained for reconciliation and "
-        "excluded from master-list site coverage.",
+        "The submitted site reference does not match an approved CCCM master-site "
+        "ID. The assessment is retained, but excluded from matched-site coverage "
+        "and mapping until reconciliation is completed.",
     ),
     "MISSING_SITE_REFERENCE": (
         "high",
@@ -149,6 +149,6 @@ def evaluate(
         if not site_reference:
             codes.append("MISSING_SITE_REFERENCE")
         elif not site_matched:
-            codes.append("UNRESOLVED_SITE")
+            codes.append("UNMATCHED_MASTER_SITE")
 
     return codes
