@@ -99,6 +99,14 @@ function applyPublicTier() {
   // carry no site identity, and stay.
   remove('[data-export="sites"]');
   remove('[data-export="gaps"]');
+  // "Priority sites requiring follow-up" is a per-site list. Without names it
+  // is ten identical rows, and the district-level card beside it ("Top
+  // underserved districts") already answers the question the section exists to
+  // answer. The gap KPIs above it are unaffected.
+  const prioritySites = document.getElementById("priority-sites-list");
+  if (prioritySites && prioritySites.closest(".card")) prioritySites.closest(".card").remove();
+  const grid = document.querySelector("#section-priority .chart-grid-equal");
+  if (grid) grid.classList.remove("chart-grid-equal");
 }
 
 function showApiError(message) {
@@ -443,7 +451,7 @@ document.addEventListener("error", (e) => {
 
 // Bumped alongside the asset cache-bust query param (index.html ?v=N) so the
 // footer always names the build actually being served.
-const DASHBOARD_BUILD = "v48";
+const DASHBOARD_BUILD = "v49";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
