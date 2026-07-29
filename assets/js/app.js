@@ -149,9 +149,17 @@ function applyViewMode() {
   if (isClusterView()) {
     document.body.classList.add("cluster-view");
     const banner = document.getElementById("restriction-banner");
-    if (banner) banner.textContent = t("cluster_view_banner");
+    if (banner) {
+      banner.textContent = t("cluster_view_banner");
+      banner.hidden = false;
+    }
     return;
   }
+  // Public view: no banner at all. The what-is-published explanation lives in
+  // the definitions box, where a reader looks for definitions, not in a notice
+  // pushed above the figures.
+  const publicBanner = document.getElementById("restriction-banner");
+  if (publicBanner) publicBanner.remove();
   // REMOVED, not hidden: a hidden section still renders, still lands in the
   // accessibility tree, and still shows if a stylesheet fails.
   document.querySelectorAll(".cluster-only").forEach((el) => el.remove());
@@ -526,7 +534,7 @@ document.addEventListener("error", (e) => {
 
 // Bumped alongside the asset cache-bust query param (index.html ?v=N) so the
 // footer always names the build actually being served.
-const DASHBOARD_BUILD = "v61";
+const DASHBOARD_BUILD = "v62";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();

@@ -578,11 +578,10 @@ function renderCoverageTrendChart(records) {
         // Single series + the card title already names the metric — a legend
         // box only overlaps the point labels (as reported), so hide it.
         legend: { display: false },
-        // The denominator IS the story on this chart: early rounds recorded
-        // few confirmed absences, so a bare "100%" invites the reader to see a
-        // service collapse where the data collection changed. Every point says
-        // what it is computed on.
-        barValues: { format: (v, i) => `${Math.round(safeNumber(v))}% · n=${formatNumber((data[i] || {}).assessed || 0)}` },
+        // Denominators live in the tooltip and the note under the chart; on
+        // the points themselves they crowded the line and clipped at the
+        // edges, so the labels stay plain percentages.
+        barValues: PCT_LABEL,
         tooltip: {
           callbacks: {
             // Tooltip callbacks receive a context object, not a number — hence
@@ -1759,7 +1758,9 @@ function renderThreeW(records) {
       </tr></thead>
       <tbody>
         ${rows.map((r) => `<tr>
-          <td><strong>${escapeHtml(r.agency)}</strong></td>
+          <td>${r.agency === MASKED_PROVIDER_LABEL
+            ? `<em>${escapeHtml(t("masked_provider_row"))}</em>`
+            : `<strong>${escapeHtml(r.agency)}</strong>`}</td>
           <td>${escapeHtml(r.district)}</td>
           <td>${Array.from(r.sectors).sort().map((sec) => `<span class="drawer-sector">${sectorIcon(sec, 13)} ${escapeHtml(sec)}</span>`).join(" ")}</td>
           <td>${r.sites.size}</td>
@@ -1773,6 +1774,13 @@ function renderThreeW(records) {
   renderSingleProviderList(records);
 }
 
+// The server masks provider identity for sensitive sectors (GBV) — every
+// masked agency arrives as this one literal. Counting that literal as a
+// provider NAME collapses any number of distinct organisations into "one",
+// which made every district with any GBV presence falsely appear on the
+// single-provider list, even where five actors work.
+const MASKED_PROVIDER_LABEL = "Provider present (masked)";
+
 // Single-provider sectors: the operational risk a donor can actually act on.
 function renderSingleProviderList(records) {
   const container = document.getElementById("single-provider-container");
@@ -1781,6 +1789,11 @@ function renderSingleProviderList(records) {
   const providers = new Map(); // district|sector -> Set(agency)
   records.forEach((r) => {
     if (!r.agency || !r.district || !r.sector || r.coverageStatus !== "Yes") return;
+    // Masked sectors are EXCLUDED, not shown as a "masked sole provider":
+    // with identities collapsed to one literal the provider COUNT is
+    // unknowable, and a wrong "sole provider" row is worse than an absent
+    // one. The note under the table says so.
+    if (r.agency === MASKED_PROVIDER_LABEL) return;
     const key = r.district + "|" + r.sector;
     if (!providers.has(key)) providers.set(key, new Set());
     providers.get(key).add(r.agency);
@@ -1808,5 +1821,6 @@ function renderSingleProviderList(records) {
           <td><strong>${escapeHtml(r.agency)}</strong></td>
         </tr>`).join("") || `<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px;">${escapeHtml(t("no_single_provider"))}</td></tr>`}
       </tbody>
-    </table>`;
+    </table>
+    <p class="chart-summary">${escapeHtml(t("single_provider_masked_note"))}</p>`;
 }

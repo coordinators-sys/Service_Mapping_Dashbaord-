@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="assets/css/dashboard.css?v=61" />
+  <link rel="stylesheet" href="assets/css/dashboard.css?v=62" />
 </head>
 <body>
   <header class="app-header">
@@ -126,7 +126,11 @@
   </nav>
 
   <main class="container">
-    <div id="restriction-banner" class="banner banner-info" role="status" data-i18n="restriction_notice">Open to the humanitarian community. Coverage, gaps and catchment figures are shown in full. Individual site names and coordinates are not published, to avoid identifying which sites have no protection or site-management actor present.</div>
+    <!-- Shown ONLY in the cluster-team view (?view=cluster), where it warns that
+         partner-compliance content is on screen. The public explanation of what
+         is and is not published lives in the definitions box and the footer,
+         not in a banner above the figures. -->
+    <div id="restriction-banner" class="banner banner-info" role="status" hidden></div>
     <div id="api-error-banner" class="banner banner-warning hidden" role="alert"></div>
     <div id="stale-banner" class="banner banner-warning hidden" role="status"></div>
     <div id="empty-banner" class="banner banner-info hidden" role="status"></div>
@@ -444,15 +448,15 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF" crossorigin="anonymous"></script>
-  <script src="assets/js/columnar.js?v=61"></script>
-  <script src="assets/js/translations.js?v=61"></script>
-  <script src="assets/js/multiselect.js?v=61"></script>
-  <script src="assets/js/filters.js?v=61"></script>
-  <script src="assets/js/semantic.js?v=61"></script>
-  <script src="assets/js/charts.js?v=61"></script>
-  <script src="assets/js/maps.js?v=61"></script>
-  <script src="assets/js/tables.js?v=61"></script>
-  <script src="assets/js/export.js?v=61"></script>
-  <script src="assets/js/app.js?v=61"></script>
+  <script src="assets/js/columnar.js?v=62"></script>
+  <script src="assets/js/translations.js?v=62"></script>
+  <script src="assets/js/multiselect.js?v=62"></script>
+  <script src="assets/js/filters.js?v=62"></script>
+  <script src="assets/js/semantic.js?v=62"></script>
+  <script src="assets/js/charts.js?v=62"></script>
+  <script src="assets/js/maps.js?v=62"></script>
+  <script src="assets/js/tables.js?v=62"></script>
+  <script src="assets/js/export.js?v=62"></script>
+  <script src="assets/js/app.js?v=62"></script>
 </body>
 </html>
