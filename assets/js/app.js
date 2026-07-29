@@ -2,21 +2,49 @@
 // control, and defines renderAll() — the single function every filter
 // change calls to keep every visual in sync.
 
+// Each section renders independently. Previously a single throw — a missing
+// element, one bad record — aborted the whole function, and every section
+// AFTER the failure silently stopped updating while the page still looked
+// populated. Stale numbers presented as current are worse than a visibly
+// broken card, so a failing section is isolated and reported, and the rest
+// still refresh.
 function renderAll() {
   const records = filtered();
-  renderCompleteness(records);
-  renderOverview(records);
-  renderGapProfiles(records);
-  renderCoverage(records);
-  renderAgencies(records);
-  renderAgencyMatrix(records);
-  renderPriorityGaps(records);
-  renderCatchments(records);
-  renderGeography(records);
-  renderAssessments(records);
-  renderSiteTable(records);
-  renderDataQuality(records);
-  updateHeaderInfo();
+  const sections = [
+    ["completeness", renderCompleteness],
+    ["overview", renderOverview],
+    ["gap profiles", renderGapProfiles],
+    ["coverage", renderCoverage],
+    ["agencies", renderAgencies],
+    ["agency matrix", renderAgencyMatrix],
+    ["priority gaps", renderPriorityGaps],
+    ["catchments", renderCatchments],
+    ["geography", renderGeography],
+    ["assessments", renderAssessments],
+    ["site table", renderSiteTable],
+    ["data quality", renderDataQuality],
+  ];
+  const failed = [];
+  for (const [name, render] of sections) {
+    try {
+      render(records);
+    } catch (err) {
+      failed.push(name);
+      console.error(`[service-mapping] section "${name}" failed to render`, err);
+    }
+  }
+  try {
+    updateHeaderInfo();
+  } catch (err) {
+    failed.push("header");
+    console.error("[service-mapping] header failed to render", err);
+  }
+  // Never leave a partly-rendered dashboard looking complete.
+  const banner = document.getElementById("api-error-banner");
+  if (failed.length && banner) {
+    banner.textContent = t("section_render_failed", { sections: failed.join(", ") });
+    banner.classList.remove("hidden");
+  }
 }
 
 // Explicit dashboard states. A temporary zero is indistinguishable from a
@@ -451,7 +479,7 @@ document.addEventListener("error", (e) => {
 
 // Bumped alongside the asset cache-bust query param (index.html ?v=N) so the
 // footer always names the build actually being served.
-const DASHBOARD_BUILD = "v49";
+const DASHBOARD_BUILD = "v50";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();

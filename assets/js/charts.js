@@ -776,6 +776,11 @@ const PRIORITY_TABLE_TOP = 10;
 // drawer, per the brief.
 function renderPrioritySitesTable() {
   const container = document.getElementById("priority-sites-list");
+  // The public tier removes this card entirely — it lists individual sites,
+  // which that tier does not name. Without this guard the whole of renderAll()
+  // aborts here and every section AFTER it silently stops updating, which is
+  // far worse than a missing card because the page still looks populated.
+  if (!container) return;
   if (!_priorityAll.length) {
     container.innerHTML = `<div class="banner banner-info">${t("no_priority_gaps")}</div>`;
     return;
