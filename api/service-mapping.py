@@ -53,6 +53,11 @@ class handler(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=600")
         else:
             self.send_header("Cache-Control", "no-store")
+        # The body varies by Accept-Encoding, and the response is served with a
+        # shared-cache directive (s-maxage). Without Vary a cache may store the
+        # gzip body and replay it to a client that never advertised gzip —
+        # observed in the wild as a plain fetch receiving undecodable bytes.
+        self.send_header("Vary", "Accept-Encoding")
         self.send_header("Access-Control-Allow-Origin", "*")  # public read-only aggregate data
         self.send_header("X-Content-Type-Options", "nosniff")
         if use_gzip:
