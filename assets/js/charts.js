@@ -866,8 +866,13 @@ function computeCatchmentAnalysis(records) {
     // catchment. A raw site reference awaiting reconciliation is a real
     // submission but not an official site, and counting it here would put an
     // unverified location into a geographic total.
-    if (r.matchedSiteCode && matchGroupOf(r.matchStatus) === "matched" && r.scopeType !== "district") {
-      entry.sites.add(r.matchedSiteCode);
+    // Keyed on siteKey, not matchedSiteCode: in the public tier the code is
+    // replaced by an opaque reference, and reading the code directly made every
+    // catchment report zero matched sites. The trust gate stays matchStatus,
+    // which survives into that tier because it names a method, not a place.
+    if (matchGroupOf(r.matchStatus) === "matched" && r.scopeType !== "district") {
+      const key = siteKey(r);
+      if (key) entry.sites.add(key);
     }
     if (r.scopeType === "catchment" && r.submissionUuid) entry.assessmentUuids.add(r.submissionUuid);
     if (r.coverageStatus === "Yes" && r.agency) entry.agencies.add(r.agency);
