@@ -50,4 +50,4 @@ jobs:
       - name: Python
         run: python -m pytest tests/ -q
       - name: JavaScript
-        run: node --test "tests/*.test.cjs"
+        run: node --test tests/*.test.cjs
