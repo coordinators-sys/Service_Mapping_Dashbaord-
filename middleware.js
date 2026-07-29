@@ -32,6 +32,10 @@ export const config = {
 // Everything else in that directory is a build input and stays server-side.
 const PUBLIC_DATA = new Set([
   "/data/partner-update-status.json",
+  // The pre-built public payload — the dashboard's primary data source. It is
+  // the OUTPUT of the classification gates, not an input, and is re-verified
+  // by tests/test_static_payload.py on every push including daily refreshes.
+  "/data/public-payload.json",
 ]);
 
 function notFound() {

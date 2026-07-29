@@ -69,6 +69,11 @@ PUBLIC_FIELDS = frozenset({
     "publicationStatus",
     "qualitySeverity",
     "reasonCodes",
+    # Opaque per-build site reference (api/lib/public_payload.py). Carries no
+    # identity by construction: a salted hash whose salt changes every build,
+    # so it cannot be reversed even with the master list in hand. It exists
+    # precisely so the public tier can tell sites apart WITHOUT naming them.
+    "siteRef",
 })
 
 PUBLISHED_FIELDS = PUBLIC_FIELDS | PARTNER_FIELDS

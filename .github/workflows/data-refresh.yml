@@ -1,0 +1,56 @@
+# Daily data refresh — builds data/public-payload.json and commits it.
+#
+# This replaced the serverless cold-start as the data path: the dashboard
+# fetches the committed static file from the CDN (fast everywhere, no server
+# work per visitor), and the API endpoint remains as fallback.
+#
+# Requires repository secrets: KOBO_BASE_URL, KOBO_ASSET_UID, KOBO_API_TOKEN,
+# and (optional, for the provider directory) ZITE_* equivalents matching
+# api/lib/settings.py. Until they are set, scheduled runs fail visibly here
+# and the committed payload simply ages — the dashboard's stale banner is the
+# user-facing signal.
+#
+# The push triggers the normal Vercel deploy AND the checks workflow, so every
+# refreshed artefact is re-scanned for personal data and site identity before
+# it goes anywhere.
+name: data-refresh
+
+on:
+  schedule:
+    # 03:00 UTC = 06:00 EAT, matching the previous cron.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install httpx
+      - name: Build public payload
+        env:
+          KOBO_BASE_URL: ${{ secrets.KOBO_BASE_URL }}
+          KOBO_ASSET_UID: ${{ secrets.KOBO_ASSET_UID }}
+          KOBO_API_TOKEN: ${{ secrets.KOBO_API_TOKEN }}
+          ZITE_BASE_URL: ${{ secrets.ZITE_BASE_URL }}
+          ZITE_API_KEY: ${{ secrets.ZITE_API_KEY }}
+          ZITE_REPORT_ID: ${{ secrets.ZITE_REPORT_ID }}
+        run: python scripts/build_static_payload.py
+      - name: Verify the artefact before committing it
+        run: |
+          pip install pytest pyyaml
+          python -m pytest tests/test_static_payload.py -q
+      - name: Commit if changed
+        run: |
+          git config user.name "cccm-data-refresh"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/public-payload.json
+          git diff --cached --quiet && echo "no change" && exit 0
+          git commit -m "chore: daily data refresh"
+          git push
