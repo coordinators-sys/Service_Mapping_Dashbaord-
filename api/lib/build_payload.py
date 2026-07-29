@@ -343,6 +343,14 @@ _TRUSTED_MATCH = {
 }
 
 
+def _dataset_version(records: list[dict]) -> str:
+    """A stable identifier for THIS published dataset: the newest submission it
+    contains plus its size. Two runs over identical source data produce the
+    same version, so a consumer can tell a genuine refresh from a re-fetch."""
+    newest = max((r.get("reportingDate") or "" for r in records), default="")
+    return f"{newest or 'empty'}+{len(records)}"
+
+
 def _canonical_metrics(records: list[dict]) -> dict:
     """Unfiltered headline metrics, published so a consumer does not have to
     infer the analytical grain from the record list.
@@ -481,6 +489,12 @@ def _build_fresh_payload() -> dict:
             "metrics": _canonical_metrics(records),
             "masterSites": _master_sites_summary(),
             "generatedAt": dt.datetime.utcnow().isoformat() + "Z",
+            # Explicit freshness so a consumer can judge staleness without
+            # having to know that generatedAt means "last successful sync".
+            "freshness": {
+                "last_kobo_sync": dt.datetime.utcnow().isoformat() + "Z",
+                "published_dataset_version": _dataset_version(records),
+            },
             "source": "+".join(sources_used),
         }
     except KoboAPIError as exc:
