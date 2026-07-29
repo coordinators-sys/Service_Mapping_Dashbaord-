@@ -818,3 +818,129 @@ body {
    confused with a neighboring section (Overview / Clusters / Coverage /
    Priority all touch "where are the gaps" from a different angle). */
 .section-purpose { color: var(--text-muted); font-size: 0.82rem; margin: 0 0 12px; font-style: italic; }
+
+/* ===========================================================================
+   MERGED from assets/css/styles.css (2026-07-29). That file was never linked
+   from index.html — only dashboard.css is — so every rule added to it since
+   v44 (loading skeletons, definitions box, warning callouts, big figures, the
+   sector-district grid colours, folded filters) silently did nothing. The
+   features functioned unstyled, which is why it went unnoticed. One stylesheet
+   from here on; styles.css is deleted to remove the trap.
+   =========================================================================== */
+
+
+/* ---------------------------------------------------------------------------
+   Loading state. A zero rendered while data is in flight looks exactly like a
+   confirmed zero, and "0 assessed sites" was being read as a real result. While
+   the dashboard is busy, every figure is replaced by a neutral shimmer: the
+   reader can see that something is coming and cannot mistake it for an answer.
+   Reduced-motion users get the placeholder without the animation. */
+.is-loading-data #kpi-row,
+.is-loading-data #assessment-kpi-row,
+.is-loading-data #catchment-kpi-row,
+.is-loading-data #completeness-kpi-row { min-height: 96px; }
+
+.is-loading-data .kpi-grid:empty::after,
+.is-loading-data .data-table tbody:empty::after {
+  content: "";
+  display: block;
+  height: 88px;
+  border-radius: var(--radius);
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%);
+  background-size: 400% 100%;
+  animation: dash-skeleton 1.4s ease-in-out infinite;
+}
+.is-loading-data .data-table tbody:empty::after { height: 140px; }
+
+/* Charts must not draw empty axes during load: a 0%-height bar chart reads as
+   "measured zero" rather than "not measured yet". */
+.is-loading-data .chart-wrap { visibility: hidden; }
+
+.is-loading-data #header-info-line { opacity: 0.75; font-style: italic; }
+
+@keyframes dash-skeleton {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-loading-data .kpi-grid:empty::after,
+  .is-loading-data .data-table tbody:empty::after { animation: none; }
+}
+
+/* Assessment warning details: reachable by keyboard and touch, not hover-only. */
+.badge-detail { cursor: pointer; border: 1px solid transparent; }
+.badge-detail:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.warning-detail { margin-top: 6px; font-size: 0.82rem; line-height: 1.45; }
+.warning-detail[hidden] { display: none; }
+.warning-detail code { font-size: 0.78rem; }
+
+.callout { border-radius: var(--radius); padding: 12px 16px; margin: 0 0 12px; font-size: 0.86rem; }
+.callout-warning { background: #fdf0e8; color: #8a4a2a; border-left: 4px solid var(--warning); }
+[data-theme="dark"] .callout-warning { background: #3a2a1e; color: var(--warning); }
+.callout ul { margin: 8px 0 0 18px; }
+.section-note { color: var(--text-muted); font-size: 0.84rem; margin: 0 0 10px; }
+
+/* ---------------------------------------------------------------------------
+   PUBLIC TIER. The payload carries no site names, codes or coordinates, so the
+   surfaces whose only job is to identify an individual site are removed. They
+   would otherwise render a list of identical "withheld" rows — noise that
+   looks like data. Every aggregate view (coverage, gaps, catchments,
+   assessments, agencies) is unaffected and shows exactly the same figures. */
+body[data-tier="public"] .site-identity-only { display: none; }
+
+/* Definitions box — the review's highest-value change. Open on first visit,
+   collapsed thereafter, because the reader who needs it needs it before they
+   read a number, and the reader who does not should not have to scroll past
+   it every time. */
+.definitions { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card);
+  margin: 16px 0; padding: 0; }
+.definitions > summary { cursor: pointer; padding: 12px 16px; font-weight: 600; color: var(--primary);
+  list-style: none; }
+.definitions > summary::-webkit-details-marker { display: none; }
+.definitions > summary::before { content: "▸ "; }
+.definitions[open] > summary::before { content: "▾ "; }
+.definitions > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.definitions-body { padding: 0 16px 16px; font-size: 0.88rem; line-height: 1.6; }
+.definitions-body h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-muted); margin: 14px 0 6px; }
+.definitions-body ul { margin: 0; padding-left: 18px; }
+.definitions-body li { margin-bottom: 4px; }
+
+/* One-sentence plain-language reading of a chart, for every reader and for
+   screen readers and copy-paste alike. */
+.chart-summary { margin: 8px 0 0; font-size: 0.84rem; color: var(--text-muted); line-height: 1.5; }
+
+
+/* ---------------------------------------------------------------------------
+   July 2026 restructure. */
+
+/* Four big figures: a fact plus the context that makes it mean something. */
+.big-figures { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.big-figure .kpi-value { font-size: 2.1rem; line-height: 1.1; }
+.big-figure .kpi-label { font-size: 0.9rem; text-transform: none; letter-spacing: 0; font-weight: 600; }
+.big-figure-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; line-height: 1.45; }
+
+/* Sector x district grid: text as well as colour, always. */
+.sdg-table th.sdg-head { text-align: center; }
+.sdg-head-label { display: none; }
+.sdg-cell { text-align: center; font-variant-numeric: tabular-nums; cursor: pointer; }
+.sdg-good { background: rgba(58, 141, 104, 0.18); }
+.sdg-mid { background: rgba(233, 162, 59, 0.20); }
+.sdg-bad { background: rgba(217, 83, 79, 0.20); font-weight: 600; }
+.sdg-none { color: var(--text-muted); background: var(--bg); }
+
+/* Folded filters. */
+.more-filters { margin-top: 8px; }
+.more-filters > summary { cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--primary);
+  padding: 6px 0; list-style: none; }
+.more-filters > summary::-webkit-details-marker { display: none; }
+.more-filters > summary::before { content: "▸ "; }
+.more-filters[open] > summary::before { content: "▾ "; }
+
+/* 3W header: title + search on one line, wrapping on small screens. */
+.threew-header { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+
+/* Cluster-team view marker. */
+body.cluster-view #restriction-banner { background: #fdf0e8; color: #8a4a2a; }
+[data-theme="dark"] body.cluster-view #restriction-banner,
+body.cluster-view[data-theme="dark"] #restriction-banner { background: #3a2a1e; color: var(--warning); }
