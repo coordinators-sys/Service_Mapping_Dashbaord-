@@ -25,6 +25,14 @@ vocabulary (`District Level` → `district`, etc.). An unrecognised value is
 **not** defaulted to site — it yields `null` and raises
 `UNKNOWN_REPORTING_LEVEL`.
 
+The form only asks `level` for service mapping, so facility-mapping and
+pre-v6 submissions carry none — around 16,000 records. A submission that
+**names a site** has an unambiguous grain, so it is treated as site level and
+flagged `REPORTING_LEVEL_INFERRED` (low severity, published). The inference is
+recorded on the record, never silent. With no level **and** no site the grain
+really is undefined and the record is quarantined — which is why this cannot
+degrade into a blanket default to site.
+
 Only the identifiers relevant to the declared grain are populated:
 
 | scopeType | region | district | catchment | site |
@@ -44,6 +52,12 @@ Two distinct fields, from two distinct places in the form:
 |---|---|---|
 | `reportingPartner` | `organization_updating` | the agency that **conducted** the assessment |
 | `agency` | `agency_<sector>` repeat groups | the agency **delivering** a service at that location |
+
+Kobo submits the choice-list **code** (`acted`), not the label. Codes are
+resolved through `data/organizations.json` (generated from the form) and then
+through the reviewed alias table, which is where **retired** codes live — e.g.
+`pmwd` is the pre-v6 code for PMWDO. Unknown codes pass through unchanged
+rather than being guessed at or dropped.
 
 They are filtered separately (Reporting Partner vs Agency). Provider rows never
 populate `reportingPartner`.
@@ -77,7 +91,9 @@ python scripts/build_admin_reference.py ML/Service_Mapping_Tool_v6.xlsx
 ### Catchment
 
 Read from `group_general_info/subdistrict` — **the source**, not a matched
-site. (Reading it from the site is what dropped `CA12` from a Baidoa
+site. Submissions send the district p-code concatenated with the catchment code
+(`SO2401CA12`), so the p-code prefix is stripped before matching; the raw value
+is retained verbatim. (Reading it from the site is what dropped `CA12` from a Baidoa
 catchment-level assessment, which has no site to read from.) Matched
 exact-code **within the declared district only**, because CA codes repeat
 across districts.
@@ -101,7 +117,10 @@ Severity → policy: `low` publish · `medium` publish with warning · `high` an
 Key codes: `MISSING_REQUIRED_CATCHMENT`, `UNRESOLVED_CATCHMENT`,
 `UNRESOLVED_SITE`, `MISSING_SITE_REFERENCE`, `UNKNOWN_REPORTING_LEVEL`,
 `UNRESOLVED_DISTRICT`, `MISSING_DISTRICT`, `NO_LOGICAL_KEY`,
-`SUPERSEDED_VERSION`.
+`REPORTING_LEVEL_INFERRED`, `SUPERSEDED_VERSION`.
+
+Every record from **every** source reaches a terminal state, including the
+ZiteManager provider directory — see §10.
 
 Validation is evaluated **at the declared grain** — a district assessment is
 complete without a catchment or a site. This is what stops valid area-level
@@ -152,3 +171,15 @@ each covering a distinct failure class — wrong district, lost catchment,
 missing catchment, area-level loss, duplicate-looking site codes, provider vs
 reporter confusion. Treat them as permanent; they are the guard against this
 class of defect returning.
+
+## 10. The ZiteManager provider directory
+
+A **reference source**, not assessments. Nobody conducted a directory entry and
+it declares no reporting level, so `reportingPartner` and `scopeType` are
+explicitly null and its rows are **excluded from the assessment grain**. They
+carry a `submissionUuid`, and counting them there had the Assessments KPI
+reading 8,446 against 2,718 real assessments.
+
+They still reach an explicit terminal state, because "no record is left
+unclassified" applies to every source. They continue to contribute to sector
+**coverage** at the sites they match.
