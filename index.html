@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="assets/css/dashboard.css?v=43" />
+  <link rel="stylesheet" href="assets/css/dashboard.css?v=44" />
 </head>
 <body>
   <header class="app-header">
@@ -19,7 +19,7 @@
         <div class="brand-text">
           <div class="eyebrow" data-i18n="eyebrow">SERVICE COVERAGE TOOL · CCCM CLUSTER SOMALIA</div>
           <h1 data-i18n="title">Service Mapping Dashboard</h1>
-          <div class="header-info" id="header-info-line">Reporting period: —  •  0 assessed sites  •  Last Kobo sync: —</div>
+          <div class="header-info" id="header-info-line" data-i18n="header_info_loading">Loading latest service-mapping data…</div>
         </div>
       </div>
       <div class="header-actions">
@@ -85,6 +85,10 @@
             <div id="filter-scope"></div>
           </div>
           <div class="filter-field">
+            <label id="lbl-pubStatus" data-i18n="f_pub_status">Publication Status</label>
+            <div id="filter-pubStatus"></div>
+          </div>
+          <div class="filter-field">
             <label id="lbl-coverage" data-i18n="f_coverage">Coverage status</label>
             <div id="filter-coverage"></div>
           </div>
@@ -120,10 +124,12 @@
   </nav>
 
   <main class="container">
-    <div id="api-error-banner" class="banner banner-warning hidden"></div>
-    <div id="loading-banner" class="banner banner-info">
-      <span data-i18n="loading">Loading service-mapping data…</span>
-      <span class="loading-slow-note" data-i18n="loading_slow">This is taking longer than usual — the server may be starting up.</span>
+    <div id="api-error-banner" class="banner banner-warning hidden" role="alert"></div>
+    <div id="stale-banner" class="banner banner-warning hidden" role="status"></div>
+    <div id="empty-banner" class="banner banner-info hidden" role="status"></div>
+    <div id="loading-banner" class="banner banner-info" role="status" aria-live="polite">
+      <span data-i18n="loading">Loading latest service-mapping data…</span>
+      <span class="loading-slow-note" data-i18n="loading_slow">The dashboard is taking longer than usual to load. The latest published data is being retrieved.</span>
     </div>
 
     <section id="section-key-figures" class="section">
@@ -161,9 +167,17 @@
           <select id="map-mode" class="control-select">
             <option value="overall" data-i18n="map_overall">Overall coverage</option>
             <option value="sector" data-i18n="map_sector">Selected sector</option>
-            <option value="agencies" data-i18n="map_agencies">Active agencies</option>
+            <option value="agencies" data-i18n="map_agencies">Active service providers</option>
             <option value="gaps" data-i18n="map_gaps">Priority gaps</option>
             <option value="freshness" data-i18n="map_freshness">Data freshness</option>
+          </select>
+          <label class="visually-hidden" for="map-layer" data-i18n="map_layer_label">Map layer</label>
+          <select id="map-layer" class="select-control">
+            <option value="service_coverage" data-i18n="layer_service_coverage">Service coverage</option>
+            <option value="assessment_districts" data-i18n="layer_assessment_districts">Assessment districts</option>
+            <option value="assessment_catchments" data-i18n="layer_assessment_catchments">Assessment catchments</option>
+            <option value="matched_sites" data-i18n="layer_matched_sites">Matched assessed sites</option>
+            <option value="quality_exceptions" data-i18n="layer_quality_exceptions">Data-quality exceptions</option>
           </select>
           <button class="btn btn-light" id="btn-reset-map" data-i18n="reset_map">Reset map</button>
           <button class="btn btn-light" id="btn-fullscreen-map" data-i18n="fullscreen">⛶</button>
@@ -248,15 +262,19 @@
           <div class="card-header"><h2 data-i18n="h_catchment_table">Catchment overview</h2></div>
           <!-- Capped to roughly the chart card's height so the two cards sit
                level; scrolls internally, and the button removes the cap. -->
+          <p class="section-note" id="catchment-grain-note" data-i18n="catchment_grain_note">Catchment assessments describe services at catchment level. The matched-site count only includes site-level records linked to approved master-site IDs.</p>
+          <div id="catchment-unresolved" class="callout callout-warning hidden" role="status"></div>
           <div class="table-scroll table-capped" id="catchment-table-scroll">
             <table class="data-table" id="catchment-table">
               <thead>
                 <tr>
                   <th data-i18n="col_catchment">Catchment</th>
                   <th data-i18n="col_district">District</th>
-                  <th data-i18n="col_catch_sites">Sites assessed</th>
-                  <th data-i18n="col_agencies">Active agencies</th>
+                  <th data-i18n="col_catch_assessments">Catchment assessments</th>
+                  <th data-i18n="col_catch_sites">Matched sites reported within catchment</th>
+                  <th data-i18n="col_agencies">Active service providers</th>
                   <th data-i18n="col_coverage_score">Coverage score</th>
+                  <th data-i18n="col_data_quality">Data quality</th>
                   <th data-i18n="col_catch_gaps">Top missing sectors</th>
                 </tr>
               </thead>
@@ -427,14 +445,14 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF" crossorigin="anonymous"></script>
-  <script src="assets/js/translations.js?v=43"></script>
-  <script src="assets/js/multiselect.js?v=43"></script>
-  <script src="assets/js/filters.js?v=43"></script>
-  <script src="assets/js/semantic.js?v=43"></script>
-  <script src="assets/js/charts.js?v=43"></script>
-  <script src="assets/js/maps.js?v=43"></script>
-  <script src="assets/js/tables.js?v=43"></script>
-  <script src="assets/js/export.js?v=43"></script>
-  <script src="assets/js/app.js?v=43"></script>
+  <script src="assets/js/translations.js?v=44"></script>
+  <script src="assets/js/multiselect.js?v=44"></script>
+  <script src="assets/js/filters.js?v=44"></script>
+  <script src="assets/js/semantic.js?v=44"></script>
+  <script src="assets/js/charts.js?v=44"></script>
+  <script src="assets/js/maps.js?v=44"></script>
+  <script src="assets/js/tables.js?v=44"></script>
+  <script src="assets/js/export.js?v=44"></script>
+  <script src="assets/js/app.js?v=44"></script>
 </body>
 </html>

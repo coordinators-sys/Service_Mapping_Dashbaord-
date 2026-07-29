@@ -26,6 +26,7 @@ const filters = {
   reportingPartner: new Set(),
   // Declared analytical grain: district | catchment | site.
   scope: new Set(),
+  pubStatus: new Set(),
   source: new Set(),
   service: new Set(),
   coverage: new Set(),
@@ -55,6 +56,9 @@ function filtered(excludeDimension) {
     if (filters.agency.size && excludeDimension !== "agency" && !filters.agency.has(r.agency)) return false;
     if (filters.reportingPartner.size && excludeDimension !== "reportingPartner" && !filters.reportingPartner.has(r.reportingPartner)) return false;
     if (filters.scope.size && excludeDimension !== "scope" && !filters.scope.has(r.scopeType)) return false;
+    // Lets a reviewer isolate exactly the records carrying a warning, which is
+    // the queue they actually work from.
+    if (filters.pubStatus.size && excludeDimension !== "pubStatus" && !filters.pubStatus.has(r.publicationStatus)) return false;
     if (filters.period.size && excludeDimension !== "period" && !filters.period.has(r.reportingPeriod)) return false;
     if (filters.coverage.size && excludeDimension !== "coverage" && !filters.coverage.has(r.coverageStatus)) return false;
     if (filters.source.size && excludeDimension !== "source" && !filters.source.has(r.dataSource)) return false;
@@ -117,6 +121,7 @@ const SLICER_CONFIG = [
   { dimension: "reportingPartner", labelKey: "f_reporting_partner", nounKey: "noun_partners" },
   { dimension: "agency", labelKey: "f_agency", nounKey: "noun_agencies" },
   { dimension: "scope", labelKey: "f_scope", nounKey: "noun_scopes" },
+  { dimension: "pubStatus", labelKey: "f_pub_status", nounKey: "noun_pub_status" },
   { dimension: "coverage", labelKey: "f_coverage", nounKey: "noun_statuses" },
 ];
 
@@ -163,6 +168,12 @@ function buildOptions(dimension) {
     return present.map((v) => ({ value: v, label: sourceLabel(v) }));
   }
 
+  if (dimension === "pubStatus") {
+    const present = new Set(scoped.map((r) => r.publicationStatus).filter(Boolean));
+    return ["published", "published_with_warning", "quarantined"]
+      .filter((v) => present.has(v))
+      .map((v) => ({ value: v, label: t("pub_" + v.replace("published_with_warning", "warning").replace("published", "published")) }));
+  }
   if (dimension === "scope") {
     const present = new Set(scoped.map((r) => r.scopeType).filter(Boolean));
     return ["district", "catchment", "site"]
@@ -219,6 +230,7 @@ function displayValue(dimension, value) {
   }
 
   if (dimension === "scope") return t("scope_" + value);
+  if (dimension === "pubStatus") return t(value === "published_with_warning" ? "pub_warning" : value === "quarantined" ? "pub_quarantined" : "pub_published");
   if (dimension === "coverage") {
     return t(value === "Yes" ? "chart_yes" : value === "No" ? "chart_no" : "chart_unknown");
   }
@@ -347,6 +359,10 @@ function applyFilters() {
   renderCaption();
   renderAll();
   updateUrlFromFilters();
+  // Empty / stale is decided only AFTER a render against real data, so a
+  // filter that matches nothing reads as "no records match" rather than as a
+  // confirmed zero produced while loading.
+  if (typeof refreshResultState === "function") refreshResultState();
 }
 
 // Shareable filtered views: every active filter is reflected as a URL query

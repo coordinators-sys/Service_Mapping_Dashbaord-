@@ -170,7 +170,13 @@ function renderGeography(records) {
   restyleBoundaries();
 
   const mode = document.getElementById("map-mode").value;
-  const points = sitePointsFromRecords(records);
+  // The LAYER decides which geographic grain is on the map; the mode decides
+  // how the site markers are coloured. Mixing the two is what let district and
+  // catchment assessments look like site data.
+  const layerEl = document.getElementById("map-layer");
+  const layer = layerEl ? layerEl.value : "service_coverage";
+  const plotsSites = layer === "service_coverage" || layer === "matched_sites";
+  const points = plotsSites ? sitePointsFromRecords(records) : [];
   const zoom = map.getZoom();
 
   if (zoom < CLUSTER_ZOOM_THRESHOLD && points.length > 40) {
@@ -256,7 +262,18 @@ function renderClusteredPoints(points, mode) {
 
 function renderMapLegend(mode) {
   const legend = document.getElementById("map-legend");
+  const layerEl = document.getElementById("map-layer");
+  const layer = layerEl ? layerEl.value : "service_coverage";
+  // The legend states the GRAIN explicitly, because the same map frame can
+  // show districts, catchments or sites and a reader cannot tell which from
+  // the colours alone.
+  const grainKey = layer === "assessment_districts" ? "legend_grain_district"
+    : layer === "assessment_catchments" ? "legend_grain_catchment"
+    : layer === "quality_exceptions" ? "legend_grain_exceptions"
+    : "legend_grain_site";
   legend.innerHTML = `
+    <span class="legend-grain"><strong>${escapeHtml(t(grainKey))}</strong></span>`
+  + `
     <span><span class="legend-dot" style="background:${COLORS.success}"></span> ${t("legend_adequate")}</span>
     <span><span class="legend-dot" style="background:${COLORS.warning}"></span> ${t("legend_partial")}</span>
     <span><span class="legend-dot" style="background:${COLORS.critical}"></span> ${t("legend_critical")}</span>

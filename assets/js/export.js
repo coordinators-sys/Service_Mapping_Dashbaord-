@@ -104,10 +104,35 @@ function exportByKind(kind) {
     return downloadCsv(`cccm_priority_service_gaps_${stamp}.csv`, withMeta(rows));
   }
   if (kind === "quality") {
-    const rows = records.filter((r) => r.dataQualityStatus && r.dataQualityStatus !== "passed").map((r) => ({
-      siteCode: r.matchedSiteCode || r.siteCodeRaw, matchStatus: r.matchStatus,
-      dataQualityStatus: r.dataQualityStatus, submissionUuid: r.submissionUuid,
-    }));
+    // Assessment-grain exceptions, one row per (assessment, reason code). This
+    // used to export record-grain validation flags, which reconciled with
+    // nothing on screen. Each row is an actionable item: it names the
+    // submission, what is unresolved, how serious it is and who owns it.
+    const rows = [];
+    for (const a of assessmentsFromRecords(records).filter(isCurrent)) {
+      for (const code of (a.reasonCodes || [])) {
+        if (code === "REPORTING_LEVEL_INFERRED") continue; // informational, not an exception
+        rows.push({
+          source_id: a.sourceId || "",
+          reporting_partner: a.reportingPartner || "",
+          assessment_date: (a.assessmentDate || "").slice(0, 10),
+          reporting_period: a.reportingPeriod || "",
+          region: a.region || "",
+          district: a.district || "",
+          declared_scope: a.scopeType || "",
+          submitted_value: a.catchmentRaw || a.siteCodeRaw || "",
+          reason_code: code,
+          severity: a.qualitySeverity || "",
+          explanation: a.qualityExplanation || "",
+          first_detected: (a.assessmentDate || "").slice(0, 10),
+          last_checked: (state.generatedAt || "").slice(0, 10),
+          resolution_owner: a.reconciliationOwner || DEFAULT_EXCEPTION_OWNER,
+          status: a.reconciliationStatus || "open",
+          resolution_note: a.reconciliationNote || "",
+          selected_filters: activeFilterDescription(),
+        });
+      }
+    }
     return downloadCsv(`cccm_data_quality_issues_${stamp}.csv`, withMeta(rows));
   }
   if (kind === "sectors") {
@@ -119,10 +144,26 @@ function exportByKind(kind) {
   }
   if (kind === "catchments") {
     const rows = computeCatchmentAnalysis(records).map((c) => ({
-      catchment: c.catchment, district: c.district, sitesAssessed: c.sitesAssessed,
-      activeAgencies: c.activeAgencies, coveragePct: c.coveragePct === null ? "" : Math.round(c.coveragePct),
+      catchment: c.catchment, district: c.district,
+      catchmentAssessments: c.catchmentAssessments,
+      matchedSitesReportedWithinCatchment: c.sitesAssessed,
+      activeServiceProviders: c.activeAgencies,
+      coveragePct: c.coveragePct === null ? "" : Math.round(c.coveragePct),
       topMissingSectors: c.topMissing.join("; "),
+      catchmentResolved: "yes",
     }));
+    // Catchment-level assessments with no resolved catchment belong in this
+    // file too — omitting them would make the export disagree with the section,
+    // and appending them to the resolved list would need an invented id.
+    for (const a of assessmentsFromRecords(records).filter(isCurrent)) {
+      if (a.scopeType !== "catchment" || catchmentIsResolved(a)) continue;
+      rows.push({
+        catchment: "", district: a.district || "",
+        catchmentAssessments: 1, matchedSitesReportedWithinCatchment: "",
+        activeServiceProviders: "", coveragePct: "", topMissingSectors: "",
+        catchmentResolved: "no",
+      });
+    }
     return downloadCsv(`cccm_catchment_summary_${stamp}.csv`, withMeta(rows));
   }
   if (kind === "notreported") {
@@ -251,9 +292,28 @@ function exportExecutivePdf() {
 // district- and catchment-level assessments are never omitted for lacking a
 // site. Carries lineage (source id / root uuid) and publication state, and
 // uses exactly the same filters as the visible dashboard.
+// The active filter selection, recorded INTO the export. A CSV that does not
+// say what it was filtered by cannot be reconciled against the screen it came
+// from, and these files are shared onward without their context.
+// Fallback owner for an exception with no register entry, so no row is ever
+// exported as nobody's problem.
+const DEFAULT_EXCEPTION_OWNER = "CCCM Cluster Information Management";
+
+function activeFilterDescription() {
+  return SLICER_CONFIG
+    .filter(({ dimension }) => filters[dimension] && filters[dimension].size)
+    .map(({ dimension }) => `${dimension}=${Array.from(filters[dimension]).join("|")}`)
+    .join("; ") || "none";
+}
+
 function exportAssessments() {
+  const selection = activeFilterDescription();
+  // Same "current" definition as the KPIs: latest non-superseded, published or
+  // published-with-warning. Quarantined records are excluded here and appear in
+  // the data-quality export instead, so the row count reconciles with the
+  // Assessments KPI exactly.
   const rows = assessmentsFromRecords(filtered())
-    .filter((a) => a.publicationStatus !== "superseded")
+    .filter(isCurrent)
     .sort((a, b) => String(b.assessmentDate || "").localeCompare(String(a.assessmentDate || "")))
     .map((a) => ({
       reporting_partner: a.reportingPartner || "",
@@ -265,14 +325,20 @@ function exportAssessments() {
       district_code_raw: a.districtRaw || "",
       catchment: a.catchment || "",
       catchment_raw: a.catchmentRaw || "",
-      site_code: a.siteCode || "",
-      site_name: a.siteName || "",
+      submitted_site_value: a.siteCodeRaw || "",
+      submitted_site_name: a.siteNameRaw || "",
+      normalized_site_name: a.matchedSiteName || "",
+      official_master_site_id: a.matchedSiteCode || "",
+      site_match_status: a.matchStatus || "",
+      reconciliation_status: a.reconciliationStatus || "",
+      reconciliation_owner: a.reconciliationOwner || "",
       publication_status: a.publicationStatus || "",
       quality_severity: a.qualitySeverity || "",
       reason_codes: (a.reasonCodes || []).join(" "),
       quality_explanation: a.qualityExplanation || "",
       source_id: a.sourceId || "",
       source_root_uuid: a.sourceRootUuid || "",
+      selected_filters: selection,
       data_refreshed_at: state.generatedAt || "",
       exported_at: new Date().toISOString(),
     }));

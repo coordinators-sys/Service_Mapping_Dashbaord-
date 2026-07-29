@@ -1,0 +1,51 @@
+
+/* ---------------------------------------------------------------------------
+   Loading state. A zero rendered while data is in flight looks exactly like a
+   confirmed zero, and "0 assessed sites" was being read as a real result. While
+   the dashboard is busy, every figure is replaced by a neutral shimmer: the
+   reader can see that something is coming and cannot mistake it for an answer.
+   Reduced-motion users get the placeholder without the animation. */
+.is-loading-data #kpi-row,
+.is-loading-data #assessment-kpi-row,
+.is-loading-data #catchment-kpi-row,
+.is-loading-data #completeness-kpi-row { min-height: 96px; }
+
+.is-loading-data .kpi-grid:empty::after,
+.is-loading-data .data-table tbody:empty::after {
+  content: "";
+  display: block;
+  height: 88px;
+  border-radius: var(--radius);
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%);
+  background-size: 400% 100%;
+  animation: dash-skeleton 1.4s ease-in-out infinite;
+}
+.is-loading-data .data-table tbody:empty::after { height: 140px; }
+
+/* Charts must not draw empty axes during load: a 0%-height bar chart reads as
+   "measured zero" rather than "not measured yet". */
+.is-loading-data .chart-wrap { visibility: hidden; }
+
+.is-loading-data #header-info-line { opacity: 0.75; font-style: italic; }
+
+@keyframes dash-skeleton {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-loading-data .kpi-grid:empty::after,
+  .is-loading-data .data-table tbody:empty::after { animation: none; }
+}
+
+/* Assessment warning details: reachable by keyboard and touch, not hover-only. */
+.badge-detail { cursor: pointer; border: 1px solid transparent; }
+.badge-detail:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.warning-detail { margin-top: 6px; font-size: 0.82rem; line-height: 1.45; }
+.warning-detail[hidden] { display: none; }
+.warning-detail code { font-size: 0.78rem; }
+
+.callout { border-radius: var(--radius); padding: 12px 16px; margin: 0 0 12px; font-size: 0.86rem; }
+.callout-warning { background: #fdf0e8; color: #8a4a2a; border-left: 4px solid var(--warning); }
+[data-theme="dark"] .callout-warning { background: #3a2a1e; color: var(--warning); }
+.callout ul { margin: 8px 0 0 18px; }
+.section-note { color: var(--text-muted); font-size: 0.84rem; margin: 0 0 10px; }

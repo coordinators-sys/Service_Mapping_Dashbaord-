@@ -19,8 +19,63 @@ function renderAll() {
   updateHeaderInfo();
 }
 
+// Explicit dashboard states. A temporary zero is indistinguishable from a
+// confirmed zero, so until a successful response proves otherwise the page
+// shows skeletons and no numbers at all: "0 assessed sites" during loading was
+// being read as a real result. Only `ready` and `empty` may show figures, and
+// `empty` is reachable only after the API has answered.
+const DASH_STATES = ["initial", "loading", "slow", "ready", "empty", "stale", "error"];
+// Data older than this is presented as possibly outdated rather than current.
+const STALE_AFTER_MS = 36 * 60 * 60 * 1000;
+
+function setDashState(next) {
+  if (DASH_STATES.indexOf(next) === -1) return;
+  state.dashState = next;
+  const busy = next === "initial" || next === "loading" || next === "slow";
+  document.body.dataset.dashState = next;
+  document.body.classList.toggle("is-loading-data", busy);
+  document.getElementById("loading-banner").classList.toggle("hidden", !busy);
+  document.getElementById("loading-banner").classList.toggle("slow", next === "slow");
+  // Filters and downloads act on data that is not there yet; leaving them live
+  // during load invites a click that silently does nothing.
+  document.querySelectorAll("#btn-open-filters, #btn-download, .ms-trigger").forEach((el) => {
+    el.disabled = busy;
+    el.setAttribute("aria-disabled", busy ? "true" : "false");
+  });
+}
+
 function setLoading(isLoading) {
-  document.getElementById("loading-banner").classList.toggle("hidden", !isLoading);
+  setDashState(isLoading ? "loading" : "ready");
+}
+
+// Called after every filter application, once data is present.
+function refreshResultState() {
+  if (state.dashState === "error") return;
+  const hasRecords = filtered().length > 0;
+  const empty = document.getElementById("empty-banner");
+  if (empty) {
+    empty.classList.toggle("hidden", hasRecords);
+    if (!hasRecords) {
+      empty.innerHTML = `<span>${escapeHtml(t("empty_state"))}</span>`;
+      const reset = document.createElement("button");
+      reset.type = "button";
+      reset.className = "btn btn-light";
+      reset.textContent = t("reset_filters_action");
+      reset.addEventListener("click", () => resetFilters());
+      empty.appendChild(reset);
+    }
+  }
+
+  // Stale is a statement about the DATA's age, distinct from an error (the
+  // request failed) and from empty (the request succeeded and matched nothing).
+  const staleBanner = document.getElementById("stale-banner");
+  const syncedAt = state.generatedAt ? new Date(state.generatedAt).getTime() : null;
+  const isStale = syncedAt != null && Date.now() - syncedAt > STALE_AFTER_MS;
+  if (staleBanner) {
+    staleBanner.classList.toggle("hidden", !isStale);
+    if (isStale) staleBanner.textContent = t("stale_state", { sync: new Date(syncedAt).toLocaleString() });
+  }
+  setDashState(isStale ? "stale" : hasRecords ? "ready" : "empty");
 }
 
 function showApiError(message) {
@@ -41,16 +96,20 @@ function showApiError(message) {
 
 function updateHeaderInfo() {
   const records = filtered();
-  // Same official population as the headline KPI (verified matched sites
-  // with >=1 assessed sector) so the header can never disagree with it.
-  const assessedSites = computeSiteGapProfiles(records).filter((s) => s.assessed).length;
+  // The banner leads with ASSESSMENTS because that is the only honest
+  // mixed-grain headline: a district assessment is real work that no site
+  // count can represent. Matched master-list sites is shown beside it, named
+  // so the two can never be read as the same quantity. Both come from
+  // canonicalMetrics, so the banner cannot disagree with the KPIs below it.
+  const metrics = canonicalMetrics(records);
   // Header period ALWAYS matches the period filter: the selected period(s)
   // when filtered, "All periods" when not — so the two can never disagree.
   const currentPeriod = filters.period.size ? Array.from(filters.period).sort().join(", ") : t("all_periods");
   const lastSync = state.generatedAt ? new Date(state.generatedAt).toLocaleString() : t("header_never");
   document.getElementById("header-info-line").textContent = t("header_info", {
     period: currentPeriod,
-    n: assessedSites.toLocaleString(),
+    n: metrics.assessments.toLocaleString(),
+    m: metrics.matchedMasterSites.toLocaleString(),
     sync: lastSync,
   });
 }
@@ -68,7 +127,7 @@ async function loadData() {
   const loadingBanner = document.getElementById("loading-banner");
   loadingBanner.classList.remove("slow");
   document.getElementById("api-error-banner").classList.add("hidden");
-  const slowTimer = setTimeout(() => loadingBanner.classList.add("slow"), SLOW_LOAD_NOTICE_MS);
+  const slowTimer = setTimeout(() => setDashState("slow"), SLOW_LOAD_NOTICE_MS);
   const controller = new AbortController();
   const hardTimer = setTimeout(() => controller.abort(), HARD_TIMEOUT_MS);
 
@@ -98,6 +157,16 @@ async function loadData() {
       showApiError(`Could not reach KoboToolbox: ${payload.error || "unknown error"}. Showing an empty dashboard.`);
     }
   } catch (err) {
+    // Never replace known-good figures with zeros on failure: an error means we
+    // do not know the current numbers, which is not the same as knowing they
+    // are zero. Whatever was last loaded stays on screen behind the banner.
+    setDashState("error");
+    console.error("[service-mapping] load failed", {
+      endpoint: "/api/service-mapping",
+      status: err && err.status ? err.status : undefined,
+      name: err && err.name,
+      at: new Date().toISOString(),
+    });
     const timedOut = err.name === "AbortError";
     const lastKnown = state.generatedAt ? new Date(state.generatedAt).toLocaleString() : null;
     const suffix = lastKnown ? ` Showing the last successfully synced data (${lastKnown}).` : " Showing an empty dashboard.";
@@ -230,6 +299,8 @@ function setupEventListeners() {
   document.getElementById("sort-sector-bar").addEventListener("change", () => renderCoverage(filtered()));
   document.getElementById("heatmap-row-level") && document.getElementById("heatmap-row-level").addEventListener("change", () => renderAgencies(filtered()));
   document.getElementById("map-mode").addEventListener("change", () => renderGeography(filtered()));
+  const mapLayer = document.getElementById("map-layer");
+  if (mapLayer) mapLayer.addEventListener("change", () => renderGeography(filtered()));
   document.getElementById("btn-reset-map").addEventListener("click", resetMapView);
   // Catchment overview starts capped to the chart card's height; the button
   // removes/restores the cap so the full list is one click away.
@@ -341,7 +412,7 @@ document.addEventListener("error", (e) => {
 
 // Bumped alongside the asset cache-bust query param (index.html ?v=N) so the
 // footer always names the build actually being served.
-const DASHBOARD_BUILD = "v43";
+const DASHBOARD_BUILD = "v44";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();

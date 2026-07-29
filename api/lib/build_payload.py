@@ -332,6 +332,86 @@ def _master_sites_summary() -> dict:
     }
 
 
+# Match methods that constitute a TRUSTED tie to the master list. A probable
+# name match is explicitly NOT one: it is a candidate awaiting review.
+_TRUSTED_MATCH = {
+    "matched_by_site_code",
+    "matched_by_official_name",
+    "matched_by_alternative_name",
+    "matched_by_gps",
+    "matched_by_name_gps",
+}
+
+
+def _canonical_metrics(records: list[dict]) -> dict:
+    """Unfiltered headline metrics, published so a consumer does not have to
+    infer the analytical grain from the record list.
+
+    Every name states its grain. The dashboard applies the user's filters and
+    recomputes these client-side with the identical definitions (see
+    canonicalMetrics in assets/js/semantic.js); this block is the same
+    arithmetic over the whole dataset, and is what an API consumer or a
+    reconciliation check reads.
+    """
+    current, districts, catchments, partners = {}, set(), set(), set()
+    site_level = unresolved_catchments = warnings = 0
+    matched_sites, providers = set(), set()
+    seen_quarantined = set()
+
+    for r in records:
+        if r.get("dataSource") == "zitemanager":
+            # A provider-directory entry is not an assessment: nobody conducted
+            # it. It still contributes to service-provider presence below.
+            if r.get("coverageStatus") == "Yes" and r.get("agency"):
+                providers.add(r["agency"])
+            if r.get("matchedSiteCode") and r.get("matchStatus") in _TRUSTED_MATCH:
+                matched_sites.add(r["matchedSiteCode"])
+            continue
+        key = r.get("submissionUuid") or r.get("sourceRootUuid") or r.get("sourceId")
+        status = r.get("publicationStatus")
+        if key and status == "quarantined":
+            seen_quarantined.add(key)
+        if key and status in ("published", "published_with_warning") and key not in current:
+            current[key] = r
+        if r.get("coverageStatus") == "Yes" and r.get("agency"):
+            providers.add(r["agency"])
+        if r.get("matchedSiteCode") and r.get("matchStatus") in _TRUSTED_MATCH:
+            matched_sites.add(r["matchedSiteCode"])
+
+    for r in current.values():
+        if r.get("district"):
+            districts.add(r["district"])
+        if r.get("reportingPartner"):
+            partners.add(r["reportingPartner"])
+        if r.get("scopeType") == "site":
+            site_level += 1
+        elif r.get("scopeType") == "catchment":
+            codes = r.get("reasonCodes") or []
+            if r.get("catchment") and not ({"MISSING_REQUIRED_CATCHMENT", "UNRESOLVED_CATCHMENT"} & set(codes)):
+                catchments.add(f"{r.get('district')} | {r.get('catchment')}")
+            else:
+                unresolved_catchments += 1
+        if r.get("publicationStatus") == "published_with_warning":
+            warnings += 1
+
+    return {
+        "assessments": len(current),
+        "districts_assessed": len(districts),
+        "resolved_catchments_assessed": len(catchments),
+        "unresolved_catchment_assessments": unresolved_catchments,
+        "site_level_assessments": site_level,
+        "matched_master_sites": len(matched_sites),
+        "reporting_partners": len(partners),
+        "active_service_providers": len(providers),
+        "assessments_with_warnings": warnings,
+        "quality": {
+            "published": len(current) - warnings,
+            "published_with_warning": warnings,
+            "quarantined": len(seen_quarantined),
+        },
+    }
+
+
 def _summarize(records: list[dict]) -> dict:
     assessed_sites = {r["matchedSiteCode"] or r["siteCodeRaw"] for r in records if r.get("matchedSiteCode") or r.get("siteCodeRaw")}
     active_agencies = {r["agency"] for r in records if r.get("agency") and r.get("coverageStatus") == "Yes"}
@@ -398,6 +478,7 @@ def _build_fresh_payload() -> dict:
         return {
             "records": records,
             "summary": _summarize(records),
+            "metrics": _canonical_metrics(records),
             "masterSites": _master_sites_summary(),
             "generatedAt": dt.datetime.utcnow().isoformat() + "Z",
             "source": "+".join(sources_used),

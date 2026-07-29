@@ -390,9 +390,36 @@ function computeTrendInsight(recordsIgnoringPeriodFilter) {
     recordsIgnoringPeriodFilter,
     filters.sector.size === 1 ? Array.from(filters.sector)[0] : null
   );
-  if (trend.length < 2) return null;
-  const prev = trend[trend.length - 2];
-  const curr = trend[trend.length - 1];
+  // ANCHOR ON THE SELECTED PERIOD. This used to take the last two periods
+  // present in the data regardless of the filter, so selecting July 2026
+  // produced "2026-04 → 2026-06" — a comparison of two periods the reader had
+  // excluded. The current period is now the latest SELECTED one (or the latest
+  // available when no period is selected), and the comparison period is the
+  // nearest earlier period that actually has comparable data under the same
+  // non-period filters.
+  const selected = filters.period.size ? Array.from(filters.period).sort() : null;
+  const currentPeriod = selected ? selected[selected.length - 1] : (trend.length ? trend[trend.length - 1].period : null);
+  if (!currentPeriod) return null;
+
+  const currIdx = trend.findIndex((p) => p.period === currentPeriod);
+  const curr = currIdx >= 0 ? trend[currIdx] : null;
+
+  // A trend needs a denominator. With no matched master-list sites in the
+  // selection there is nothing to compute a coverage percentage FROM, and
+  // falling back to an unrelated global comparison — which is what produced
+  // the April-to-June sentence — is worse than saying so.
+  if (!curr || !curr.assessed) {
+    return [t("insight_trend_unavailable")];
+  }
+
+  // Nearest EARLIER period with a usable denominator; periods with no
+  // comparable data are skipped rather than silently compared against.
+  let prev = null;
+  for (let i = currIdx - 1; i >= 0; i--) {
+    if (trend[i].assessed > 0) { prev = trend[i]; break; }
+  }
+  if (!prev) return [t("insight_trend_no_previous", { curr: currentPeriod })];
+
   const delta = curr.coveragePct - prev.coveragePct;
   const strong = (v) => `<strong>${v}</strong>`;
   const params = {
@@ -648,7 +675,9 @@ function renderOverview(records) {
   // table's matched count all use this one definition, so they reconcile.
   const allProfiles = computeSiteGapProfiles(records);
   const siteProfiles = allProfiles.filter((s) => s.assessed);
-  const activeAgencies = new Set(records.filter((r) => r.coverageStatus === "Yes" && r.agency).map((r) => r.agency));
+  // Read from the canonical layer so the headline site count and the active
+  // provider count are the SAME numbers the banner, exports and API publish.
+  const metrics = canonicalMetrics(records);
   const regions = new Set(records.map((r) => r.region).filter(Boolean));
   const districts = new Set(records.map((r) => r.district).filter(Boolean));
   const assessed = siteProfiles.length;
@@ -658,8 +687,8 @@ function renderOverview(records) {
   const denom = (n) => t("kpi_of", { a: formatNumber(n), b: formatNumber(assessed) });
 
   document.getElementById("kpi-row").innerHTML = [
-    kpiCard("kpi-assessed", formatNumber(assessed), t("kpi_sites_assessed"), t("tip_sites_assessed")),
-    kpiCard("kpi-agencies", formatNumber(activeAgencies.size), t("kpi_active_agencies"), t("tip_active_agencies")),
+    kpiCard("kpi-assessed", formatNumber(metrics.matchedMasterSites), t("kpi_sites_assessed"), t("tip_sites_assessed")),
+    kpiCard("kpi-agencies", formatNumber(metrics.activeServiceProviders), t("kpi_active_agencies"), t("tip_active_agencies")),
     kpiCard("kpi-regions", formatNumber(regions.size), t("kpi_regions"), t("tip_regions")),
     kpiCard("kpi-districts", formatNumber(districts.size), t("kpi_districts"), t("tip_districts")),
     // Renamed: "Critical service gaps" -> "Sites with confirmed gaps" (>=1
@@ -825,10 +854,17 @@ function computeCatchmentAnalysis(records) {
     if (key) siteCatchment.set(key, r.catchment);
     let entry = byCatchment.get(r.catchment);
     if (!entry) {
-      entry = { catchment: r.catchment, district: r.district, sites: new Set(), agencies: new Set(), covered: 0, notCovered: 0, missing: {} };
+      entry = { catchment: r.catchment, district: r.district, sites: new Set(), assessmentUuids: new Set(), agencies: new Set(), covered: 0, notCovered: 0, missing: {} };
       byCatchment.set(r.catchment, entry);
     }
-    if (key) entry.sites.add(key);
+    // Only a TRUSTED master-list match counts as a site reported within the
+    // catchment. A raw site reference awaiting reconciliation is a real
+    // submission but not an official site, and counting it here would put an
+    // unverified location into a geographic total.
+    if (r.matchedSiteCode && matchGroupOf(r.matchStatus) === "matched" && r.scopeType !== "district") {
+      entry.sites.add(r.matchedSiteCode);
+    }
+    if (r.scopeType === "catchment" && r.submissionUuid) entry.assessmentUuids.add(r.submissionUuid);
     if (r.coverageStatus === "Yes" && r.agency) entry.agencies.add(r.agency);
   });
 
@@ -851,6 +887,13 @@ function computeCatchmentAnalysis(records) {
       return {
         catchment: e.catchment,
         district: e.district,
+        // Two DIFFERENT quantities that were previously one column called
+        // "sites assessed": how many catchment-level assessments name this
+        // catchment, and how many approved master-list sites inside it have a
+        // site-level report. A catchment can legitimately have 1 assessment
+        // and 0 matched sites — that is the Baidoa CA12 case, and reading it
+        // as "no assessment" is what the old wording invited.
+        catchmentAssessments: e.assessmentUuids.size,
         sitesAssessed: e.sites.size,
         activeAgencies: e.agencies.size,
         coveragePct: reportable ? (e.covered / reportable) * 100 : null,
@@ -860,7 +903,33 @@ function computeCatchmentAnalysis(records) {
     .sort((a, b) => String(a.catchment).localeCompare(String(b.catchment)));
 }
 
+// Catchment-level assessments whose catchment is missing or unmatched. They
+// are listed BESIDE the resolved catchment table, never inside it: putting
+// Xudur into the resolved list would require inventing a catchment id, and
+// leaving it out entirely would hide a real assessment.
+function renderUnresolvedCatchments(records) {
+  const box = document.getElementById("catchment-unresolved");
+  if (!box) return;
+  const unresolved = assessmentsFromRecords(records)
+    .filter((a) => isCurrent(a) && a.scopeType === "catchment" && !catchmentIsResolved(a));
+  if (!unresolved.length) {
+    box.classList.add("hidden");
+    box.innerHTML = "";
+    return;
+  }
+  const items = unresolved
+    .sort((a, b) => String(a.district).localeCompare(String(b.district)))
+    .map((a) => `<li><strong>${escapeHtml(a.district || "—")}</strong>${
+      a.catchmentRaw ? ` — ${escapeHtml(t("submitted_value"))}: <code>${escapeHtml(a.catchmentRaw)}</code>` : ""
+    } <span class="badge badge-warning">${escapeHtml((a.reasonCodes || []).find((c) => c.indexOf("CATCHMENT") !== -1) || "")}</span></li>`)
+    .join("");
+  box.innerHTML = `<strong>${escapeHtml(t("catchment_unresolved_title"))} (${unresolved.length})</strong>
+    <p>${escapeHtml(t("catchment_unresolved_body"))}</p><ul>${items}</ul>`;
+  box.classList.remove("hidden");
+}
+
 function renderCatchments(records) {
+  renderUnresolvedCatchments(records);
   const data = computeCatchmentAnalysis(records);
   const kpiRow = document.getElementById("catchment-kpi-row");
   const tbody = document.getElementById("catchment-table-body");
@@ -875,7 +944,7 @@ function renderCatchments(records) {
 
   if (!data.length) {
     kpiRow.innerHTML = "";
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">${t("no_catchment_data")}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">${t("no_catchment_data")}</td></tr>`;
     return;
   }
 
@@ -930,7 +999,7 @@ function renderCatchments(records) {
           callbacks: {
             label: (c) => {
               const d = chartData[c.dataIndex];
-              return `${formatPct(c.parsed.x)} — ${formatNumber(d.sitesAssessed)} sites assessed, ${formatNumber(d.activeAgencies)} agencies`;
+              return `${formatPct(c.parsed.x)} — ${formatNumber(d.sitesAssessed)} ${t("col_catch_sites").toLowerCase()}, ${formatNumber(d.activeAgencies)} ${t("col_agencies").toLowerCase()}`;
             },
           },
         },
@@ -946,9 +1015,11 @@ function renderCatchments(records) {
     <tr data-catchment="${d.catchment}">
       <td title="${escapeHtml(d.catchment)}"><strong>${escapeHtml(friendlyCatchment(d.catchment))}</strong></td>
       <td>${escapeHtml(d.district || "—")}</td>
+      <td>${d.catchmentAssessments}</td>
       <td>${d.sitesAssessed}</td>
       <td>${d.activeAgencies}</td>
       <td>${d.coveragePct === null ? "—" : d.coveragePct.toFixed(0) + "%"}</td>
+      <td><span class="badge badge-success">${escapeHtml(t("pub_published"))}</span></td>
       <td>${d.topMissing.map((s) => `<span class="drawer-sector drawer-sector-missing">${sectorIcon(s, 14)} ${s}</span>`).join("") || "—"}</td>
     </tr>`).join("");
   tbody.querySelectorAll("tr[data-catchment]").forEach((tr) => {
@@ -1005,7 +1076,10 @@ function renderCompleteness(records) {
   kpiRow.innerHTML = [
     kpiCard("kpi-master-sites", formatNumber(approved), t("kpi_master_sites_approved"), t("tip_master_sites_approved")),
     kpiCard("kpi-master-pending", formatNumber(pending), t("kpi_master_sites_pending"), t("tip_master_sites_pending")),
-    kpiCard("kpi-sites-reported", formatNumber(reported), t("kpi_sites_reported"), t("tip_sites_reported")),
+    // "Sites reported" was removed: its definition — distinct master-list
+    // sites with a current record — is exactly Matched master-list sites in
+    // the overview. Two labels for one quantity is what made the dashboard
+    // look self-contradictory, and a second name adds no information.
     kpiCard("kpi-stale-reports", formatNumber(stale), t("kpi_stale_reports"), t("tip_stale_reports")),
   ].join("");
 
@@ -1360,25 +1434,43 @@ function renderAssessments(records) {
   const row = document.getElementById("assessment-kpi-row");
   if (!row) return;
   const assessments = assessmentsFromRecords(records);
-  const counts = assessmentCounts(assessments);
+  // One definition, used by the KPIs, the banner, the exports and the API.
+  const m = canonicalMetrics(records);
 
   row.innerHTML = [
-    kpiCard("kpi-assessments", formatNumber(counts.assessments), t("kpi_assessments"), t("tip_assessments")),
-    kpiCard("kpi-assessed-districts", formatNumber(counts.assessedDistricts), t("kpi_assessed_districts"), t("tip_assessed_districts")),
-    kpiCard("kpi-assessed-catchments", formatNumber(counts.assessedCatchments), t("kpi_assessed_catchments"), t("tip_assessed_catchments")),
-    kpiCard("kpi-assessed-sites-grain", formatNumber(counts.assessedSites), t("kpi_assessed_sites"), t("tip_assessed_sites")),
-    kpiCard("kpi-reporting-partners", formatNumber(new Set(assessments.map((a) => a.reportingPartner).filter(Boolean)).size),
-            t("kpi_reporting_partners"), t("tip_reporting_partners")),
-    kpiCard("kpi-assessment-warnings", formatNumber(counts.withWarning), t("kpi_assessment_warnings"), t("tip_assessment_warnings"), counts.withWarning > 0),
+    kpiCard("kpi-assessments", formatNumber(m.assessments), t("kpi_assessments"), t("tip_assessments")),
+    kpiCard("kpi-assessed-districts", formatNumber(m.districtsAssessed), t("kpi_assessed_districts"), t("tip_assessed_districts")),
+    kpiCard("kpi-assessed-catchments", formatNumber(m.resolvedCatchmentsAssessed), t("kpi_assessed_catchments"), t("tip_assessed_catchments")),
+    kpiCard("kpi-assessed-sites-grain", formatNumber(m.siteLevelAssessments), t("kpi_assessed_sites"), t("tip_assessed_sites")),
+    kpiCard("kpi-reporting-partners", formatNumber(m.reportingPartners), t("kpi_reporting_partners"), t("tip_reporting_partners")),
+    kpiCard("kpi-assessment-warnings", formatNumber(m.assessmentsWithWarnings), t("kpi_assessment_warnings"), t("tip_assessment_warnings"), m.assessmentsWithWarnings > 0),
   ].join("");
 
   const scopeLabel = (s) => (s ? t("scope_" + s) : t("scope_unknown"));
+  // A title attribute is a hover affordance: it is unreachable by touch and
+  // awkward by keyboard, and the explanation of WHY a record is flagged is not
+  // optional detail. The badge is therefore a real button that toggles the
+  // explanation inline, carries its reason codes as text (so colour is never
+  // the only signal), and stays operable with a keyboard.
+  let badgeSeq = 0;
+  const explainBadge = (a, cls, label) => {
+    const id = `warn-detail-${badgeSeq++}`;
+    const codes = (a.reasonCodes || []).filter((c) => c !== "SUPERSEDED_VERSION");
+    return `<button type="button" class="badge ${cls} badge-detail" aria-expanded="false" aria-controls="${id}">
+        ${escapeHtml(label)}${codes.length ? " ⓘ" : ""}
+      </button>
+      <div class="warning-detail" id="${id}" hidden>
+        ${codes.map((c) => `<div><code>${escapeHtml(c)}</code></div>`).join("")}
+        <div>${escapeHtml(a.qualityExplanation || "")}</div>
+        ${a.reconciliationOwner ? `<div>${escapeHtml(t("reconciliation_owner"))}: ${escapeHtml(a.reconciliationOwner)}</div>` : ""}
+      </div>`;
+  };
   const statusBadge = (a) => {
     if (a.publicationStatus === "published_with_warning") {
-      return `<span class="badge badge-warning" title="${escapeHtml(a.qualityExplanation || "")}">${escapeHtml(t("pub_warning"))}</span>`;
+      return explainBadge(a, "badge-warning", t("pub_warning"));
     }
     if (a.publicationStatus === "quarantined") {
-      return `<span class="badge badge-critical" title="${escapeHtml(a.qualityExplanation || "")}">${escapeHtml(t("pub_quarantined"))}</span>`;
+      return explainBadge(a, "badge-critical", t("pub_quarantined"));
     }
     if (a.publicationStatus === "superseded") {
       return `<span class="badge badge-unknown">${escapeHtml(t("pub_superseded"))}</span>`;
@@ -1404,6 +1496,18 @@ function renderAssessments(records) {
       <td>${statusBadge(a)}</td>
     </tr>`).join("")
     || `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:20px;">${escapeHtml(t("no_assessments"))}</td></tr>`;
+
+  // Toggle the inline explanation. Works with mouse, keyboard (the badge is a
+  // button, so Enter/Space fire click) and touch alike.
+  document.querySelectorAll("#assessment-table-body .badge-detail").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const panel = document.getElementById(btn.getAttribute("aria-controls"));
+      if (!panel) return;
+      const open = btn.getAttribute("aria-expanded") === "true";
+      btn.setAttribute("aria-expanded", open ? "false" : "true");
+      panel.hidden = open;
+    });
+  });
 
   renderPartnerUpdateStatus();
 }
