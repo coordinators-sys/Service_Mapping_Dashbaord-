@@ -57,3 +57,25 @@
    looks like data. Every aggregate view (coverage, gaps, catchments,
    assessments, agencies) is unaffected and shows exactly the same figures. */
 body[data-tier="public"] .site-identity-only { display: none; }
+
+/* Definitions box — the review's highest-value change. Open on first visit,
+   collapsed thereafter, because the reader who needs it needs it before they
+   read a number, and the reader who does not should not have to scroll past
+   it every time. */
+.definitions { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card);
+  margin: 16px 0; padding: 0; }
+.definitions > summary { cursor: pointer; padding: 12px 16px; font-weight: 600; color: var(--primary);
+  list-style: none; }
+.definitions > summary::-webkit-details-marker { display: none; }
+.definitions > summary::before { content: "▸ "; }
+.definitions[open] > summary::before { content: "▾ "; }
+.definitions > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.definitions-body { padding: 0 16px 16px; font-size: 0.88rem; line-height: 1.6; }
+.definitions-body h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-muted); margin: 14px 0 6px; }
+.definitions-body ul { margin: 0; padding-left: 18px; }
+.definitions-body li { margin-bottom: 4px; }
+
+/* One-sentence plain-language reading of a chart, for every reader and for
+   screen readers and copy-paste alike. */
+.chart-summary { margin: 8px 0 0; font-size: 0.84rem; color: var(--text-muted); line-height: 1.5; }

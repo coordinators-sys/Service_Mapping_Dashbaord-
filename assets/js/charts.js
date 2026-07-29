@@ -12,6 +12,10 @@ const PRIORITY_SECTORS = ["Health", "WASH", "General Protection", "Shelter/NFI"]
 const COLORS = {
   primary: "#17677A", secondaryTeal: "#4F9EB1", orange: "#EC6B4D",
   success: "#3A8D68", warning: "#E9A23B", critical: "#D9534F", unknown: "#9AA5B1",
+  // "Not reported": deliberately low-saturation so it never competes with a
+  // finding, with a darker border so it stays distinguishable in greyscale
+  // and under red-green colour blindness.
+  notReportedFill: "#E3E8EC", notReportedBorder: "#6B7A88",
 };
 
 // CCCM cluster sector icons (assets/icons/, provided by the cluster).
@@ -586,6 +590,17 @@ function renderAgenciesBySectorChart(records) {
       },
     },
   });
+
+  // One sentence stating what the chart shows. It helps every reader, and it is
+  // what a screen reader announces and what someone pastes into an email.
+  const summary = document.getElementById("availability-summary");
+  if (summary) {
+    const worst = [...data].filter((d) => d.notCovered > 0).sort((a, b) => b.notCovered - a.notCovered)[0];
+    const sites = data.reduce((m, d) => Math.max(m, d.covered + d.notCovered + d.unknown), 0);
+    summary.textContent = worst
+      ? t("availability_summary", { sector: worst.sector, n: formatNumber(worst.notCovered), total: formatNumber(sites) })
+      : t("availability_summary_none");
+  }
 }
 
 function renderServiceAvailabilityChart(records) {
@@ -596,13 +611,28 @@ function renderServiceAvailabilityChart(records) {
     type: "bar",
     data: {
       labels: data.map((d) => d.sector),
-      // Assessed sites only (Yes/No). Unknown/not-reported is deliberately NOT
-      // a bar segment — it isn't an availability finding, and the grey blocks
-      // read as if something was measured. Unknown counts remain visible in
-      // the coverage-by-sector chart and the methodology.
+      // THREE states, always. A sector confirmed absent and a sector nobody has
+      // reported on are different findings, and showing only the first two
+      // invites the reader to treat "not reported" as "no gap" — the single
+      // most damaging misreading of a service-mapping dashboard.
+      //
+      // The earlier version omitted the third bar on the grounds that grey
+      // blocks "read as if something was measured". That risk is real but the
+      // opposite risk is larger: an invisible denominator is read as a complete
+      // one. It is handled by naming the segment "Not reported" and printing
+      // every count on the bar, so no state is conveyed by colour alone.
       datasets: [
-        { label: t("chart_yes"), data: data.map((d) => d.covered), backgroundColor: COLORS.success },
-        { label: t("chart_no"), data: data.map((d) => d.notCovered), backgroundColor: COLORS.orange },
+        { label: t("chart_available"), data: data.map((d) => d.covered), backgroundColor: COLORS.success },
+        { label: t("chart_confirmed_gap"), data: data.map((d) => d.notCovered), backgroundColor: COLORS.orange },
+        {
+          label: t("chart_not_reported"),
+          data: data.map((d) => d.unknown),
+          backgroundColor: COLORS.notReportedFill,
+          // A border as well as a fill: the one segment a colour-blind reader
+          // most needs to separate from the other two is this one.
+          borderColor: COLORS.notReportedBorder,
+          borderWidth: 1,
+        },
       ],
     },
     options: {
