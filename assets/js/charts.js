@@ -904,7 +904,10 @@ function renderPrioritySitesTable() {
 // once each.
 function renderCoverage(records) {
   renderServiceAvailabilityChart(records);
-  renderCoverageTrendChart(records);
+  // The trend ignores the PERIOD filter (every other filter still applies):
+  // selecting July would otherwise collapse the line to a single point, and a
+  // one-point trend answers nothing. Same convention as the trend insight.
+  renderCoverageTrendChart(filtered("period"));
 }
 
 // ---------- Catchment analysis ----------
