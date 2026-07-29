@@ -157,7 +157,10 @@ def test_xudur_visible_with_missing_catchment_warning_and_no_guess(built):
     assert rec["catchmentRaw"] is None
     assert "MISSING_REQUIRED_CATCHMENT" in rec["reasonCodes"]
     assert rec["publicationStatus"] == "published_with_warning", "visible, not dropped"
-    assert rec["qualityExplanation"]
+    # The explanation is published once in the payload's reason-code catalog
+    # rather than repeated on every record; it must still be reachable.
+    from api.lib.publication import explain
+    assert explain("MISSING_REQUIRED_CATCHMENT")
 
 
 def test_the_two_laas_caanood_sites_stay_distinct(built):

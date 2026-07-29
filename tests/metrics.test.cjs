@@ -217,3 +217,33 @@ test("the data-quality export row count matches the warning reasons present", ()
     "UNMATCHED_MASTER_SITE",
   ]);
 });
+
+test("reason-code explanations are joined from the published catalog", () => {
+  // The explanation used to be repeated on every record (~3.7 MB across the
+  // payload). It is now published once and joined client-side; a record with
+  // codes but no inline text must still explain itself.
+  global.state = { reasonCodeCatalog: {
+    MISSING_REQUIRED_CATCHMENT: "No catchment was supplied in the source.",
+    UNMATCHED_MASTER_SITE: "The site reference does not match an approved master-site ID.",
+  } };
+  assert.equal(
+    semantic.explainCodes(["MISSING_REQUIRED_CATCHMENT"]),
+    "No catchment was supplied in the source."
+  );
+  assert.equal(
+    semantic.explainCodes(["MISSING_REQUIRED_CATCHMENT", "UNMATCHED_MASTER_SITE"]),
+    "No catchment was supplied in the source.; The site reference does not match an approved master-site ID."
+  );
+  assert.equal(semantic.explainCodes([]), null, "no codes, nothing to explain");
+  assert.equal(semantic.explainCodes(["NOT_IN_CATALOG"]), null, "unknown codes are skipped, not printed raw");
+  delete global.state;
+});
+
+test("an assessment with no inline explanation still resolves one", () => {
+  global.state = { reasonCodeCatalog: { UNMATCHED_MASTER_SITE: "Not an approved master site." } };
+  const [a] = semantic.assessmentsFromRecords([
+    { dataSource: "kobo", submissionUuid: "x", scopeType: "site", reasonCodes: ["UNMATCHED_MASTER_SITE"] },
+  ]);
+  assert.equal(a.qualityExplanation, "Not an approved master site.");
+  delete global.state;
+});
