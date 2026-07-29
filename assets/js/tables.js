@@ -93,6 +93,10 @@ function buildSiteTableRows(records) {
 }
 
 function renderSiteTable(records) {
+  // The public tier removes the whole Sites section — it is one row per named
+  // site, and that tier does not name sites. Nothing below has anywhere to
+  // render to, so leave before touching the DOM.
+  if (!document.getElementById("sites-table")) return;
   // "Assessed sites" means at least one sector answered Yes or No. Sites whose
   // every sector is Unknown carry no assessment signal (no coverage score, no
   // available/missing sectors) — they are excluded from the table rather than
