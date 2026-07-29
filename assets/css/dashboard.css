@@ -944,3 +944,15 @@ body[data-tier="public"] .site-identity-only { display: none; }
 body.cluster-view #restriction-banner { background: #fdf0e8; color: #8a4a2a; }
 [data-theme="dark"] body.cluster-view #restriction-banner,
 body.cluster-view[data-theme="dark"] #restriction-banner { background: #3a2a1e; color: var(--warning); }
+
+
+/* Map popups: the quick answer the reader clicked for. */
+.map-popup { font-size: 0.85rem; line-height: 1.5; min-width: 220px; }
+.map-popup strong { color: var(--primary); font-size: 0.95rem; }
+.map-popup-table { width: 100%; margin: 6px 0; border-collapse: collapse; }
+.map-popup-table td { padding: 2px 0; }
+.map-popup-table td:last-child { text-align: right; font-weight: 600; }
+.map-popup-n { color: var(--text-muted); font-weight: 400; font-size: 0.78rem; }
+.map-popup-missing { margin: 6px 0; }
+.map-popup .btn { width: 100%; margin-top: 4px; }
+.legend-hint { color: var(--text-muted); font-style: italic; }

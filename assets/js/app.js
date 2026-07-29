@@ -404,9 +404,8 @@ function setupEventListeners() {
   document.getElementById("btn-reset-filters").addEventListener("click", resetFilters);
   setupFilterDrawer();
   document.getElementById("heatmap-row-level") && document.getElementById("heatmap-row-level").addEventListener("change", () => renderAgencies(filtered()));
-  document.getElementById("map-mode").addEventListener("change", () => renderGeography(filtered()));
-  const mapLayer = document.getElementById("map-layer");
-  if (mapLayer) mapLayer.addEventListener("change", () => renderGeography(filtered()));
+  const mapView = document.getElementById("map-view");
+  if (mapView) mapView.addEventListener("change", () => renderGeography(filtered()));
   document.getElementById("btn-reset-map").addEventListener("click", resetMapView);
   // Catchment overview starts capped to the chart card's height; the button
   // removes/restores the cap so the full list is one click away.
@@ -527,7 +526,7 @@ document.addEventListener("error", (e) => {
 
 // Bumped alongside the asset cache-bust query param (index.html ?v=N) so the
 // footer always names the build actually being served.
-const DASHBOARD_BUILD = "v59";
+const DASHBOARD_BUILD = "v60";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();

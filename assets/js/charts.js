@@ -88,6 +88,13 @@ function formatPct(value) {
 // requirements). Opt in per chart via options.plugins.barValues:
 //   { format: (v) => "58%" }            -> label at the end of each bar/point
 //   { format: ..., mode: "center" }     -> label centered inside each stacked segment
+function _isLightColor(color) {
+  if (typeof color !== "string" || color[0] !== "#") return false;
+  const n = parseInt(color.slice(1), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.6;
+}
+
 function _chartTextColor() {
   const v = getComputedStyle(document.documentElement).getPropertyValue("--text").trim();
   return v || "#26343A";
@@ -118,14 +125,19 @@ const barValueLabels = {
         const raw = ds.data[i];
         if (raw == null || (center && safeNumber(raw) === 0)) return;
         const value = safeNumber(raw);
-        const label = opts.format ? opts.format(value) : formatNumber(value);
+        // format receives (value, index) so a chart can label points with
+        // their denominator, not just the headline number.
+        const label = opts.format ? opts.format(value, i) : formatNumber(value);
 
         if (center) {
           // Inside stacked segments, only when the segment is wide enough.
           const props = el.getProps(["x", "y", "base", "width", "height"], true);
           const segmentLength = horizontal ? Math.abs(props.x - props.base) : Math.abs(props.y - props.base);
           if (segmentLength < 24) return;
-          ctx.fillStyle = "#fff";
+          // Label colour follows the SEGMENT colour: white was unreadable on
+          // the light "Not reported" fill (#E3E8EC). Luminance over 0.6 gets
+          // dark text; everything else keeps white.
+          ctx.fillStyle = _isLightColor(ds.backgroundColor) ? "#26343A" : "#fff";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           const cx = horizontal ? (props.x + props.base) / 2 : props.x;
@@ -523,11 +535,29 @@ function renderSectorBarChart(records, sortMode) {
   });
 }
 
+// A percentage computed on two observations is noise wearing a trend's
+// clothes: 2025-11 and 2025-12 each had n=2, drawn at "100%" beside months
+// computed on thousands. Points below this many assessed observations are not
+// drawn; the note under the chart says which and why.
+const MIN_TREND_OBSERVATIONS = 30;
+
 function renderCoverageTrendChart(records) {
   destroyChart("chart-coverage-trend");
   const sector = filters.sector.size === 1 ? Array.from(filters.sector)[0] : null;
-  const data = computeCoverageTrend(records, sector);
+  const allPeriods = computeCoverageTrend(records, sector);
+  const data = allPeriods.filter((d) => d.assessed >= MIN_TREND_OBSERVATIONS);
+  const dropped = allPeriods.filter((d) => d.assessed < MIN_TREND_OBSERVATIONS);
+  const note = document.getElementById("trend-note");
+  if (note) {
+    note.textContent = dropped.length
+      ? t("trend_suppressed_note", {
+          periods: dropped.map((d) => `${d.period} (n=${d.assessed})`).join(", "),
+          min: MIN_TREND_OBSERVATIONS,
+        })
+      : t("trend_n_note");
+  }
   const ctx = document.getElementById("chart-coverage-trend");
+  if (!ctx) return;
   state.charts.coverageTrend = new Chart(ctx, {
     type: "line",
     data: {
@@ -548,7 +578,11 @@ function renderCoverageTrendChart(records) {
         // Single series + the card title already names the metric — a legend
         // box only overlaps the point labels (as reported), so hide it.
         legend: { display: false },
-        barValues: PCT_LABEL,
+        // The denominator IS the story on this chart: early rounds recorded
+        // few confirmed absences, so a bare "100%" invites the reader to see a
+        // service collapse where the data collection changed. Every point says
+        // what it is computed on.
+        barValues: { format: (v, i) => `${Math.round(safeNumber(v))}% · n=${formatNumber((data[i] || {}).assessed || 0)}` },
         tooltip: {
           callbacks: {
             // Tooltip callbacks receive a context object, not a number — hence
