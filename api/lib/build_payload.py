@@ -23,6 +23,7 @@ from api.lib.indicators import coverage_from_counts
 from api.lib.kobo_client import KoboAPIError, KoboClient
 from api.lib.site_matching import get_master_site_index
 from api.lib.field_classification import assert_publishable, scrub_free_text
+from api.lib.public_payload import assert_no_site_identity, to_public
 from api.lib.publication import REASON_CODES, classify, evaluate, explain
 from api.lib.transformations import parse_submission
 from api.lib.validation import compute_record_quality_status, run_all_checks
@@ -510,8 +511,17 @@ def _build_fresh_payload() -> dict:
         _normalize_agencies(records)  # across BOTH sources, so the same org isn't double-counted
         _mask_sensitive_sectors(records)  # AFTER normalization so masking can't be undone by it
         sources_used = sorted({r["dataSource"] for r in records}) or ["kobo"]
+        # PUBLIC TIER. The dashboard is open to the humanitarian community, so
+        # site identity and precise coordinates are removed before the payload
+        # leaves the server — not hidden in the interface, where anyone can read
+        # them straight out of the network response. Every coverage, gap and
+        # catchment figure is unchanged: the analytics need to tell sites APART,
+        # which an opaque reference does, not to know WHICH site they are.
+        public_records = to_public(_compact(records))
+        assert_no_site_identity(public_records)
         return {
-            "records": _compact(records),
+            "tier": "public",
+            "records": public_records,
             "summary": _summarize(records),
             "metrics": _canonical_metrics(records),
             # Explanations are published ONCE as a catalog instead of repeated

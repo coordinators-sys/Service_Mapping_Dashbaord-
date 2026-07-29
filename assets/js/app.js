@@ -148,6 +148,11 @@ async function loadData() {
     state.masterSites = payload.masterSites || null;
     // reason code -> explanation, published once instead of on every record.
     state.reasonCodeCatalog = payload.reasonCodeCatalog || {};
+    // "public" means the payload carries no site identity. Sections that exist
+    // only to name individual sites are removed rather than left showing rows
+    // of "withheld", which would be noise pretending to be data.
+    state.tier = payload.tier || "partner";
+    document.body.dataset.tier = state.tier;
     state.generatedAt = payload.generatedAt || null;
     state.source = payload.source || null;
     state.geo = { districts, catchments, regions };
@@ -414,7 +419,7 @@ document.addEventListener("error", (e) => {
 
 // Bumped alongside the asset cache-bust query param (index.html ?v=N) so the
 // footer always names the build actually being served.
-const DASHBOARD_BUILD = "v46";
+const DASHBOARD_BUILD = "v47";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();

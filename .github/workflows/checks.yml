@@ -32,8 +32,8 @@ jobs:
         run: python -m pytest tests/test_field_classification.py -q
       - name: Field classification — every export route
         run: node --test tests/export-leak.test.cjs
-      - name: Access gate fails closed
-        run: python -m pytest tests/test_access_gate.py -q
+      - name: Public tier carries no site identity
+        run: python -m pytest tests/test_public_payload.py -q
 
   tests:
     name: tests

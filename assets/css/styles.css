@@ -49,3 +49,16 @@
 [data-theme="dark"] .callout-warning { background: #3a2a1e; color: var(--warning); }
 .callout ul { margin: 8px 0 0 18px; }
 .section-note { color: var(--text-muted); font-size: 0.84rem; margin: 0 0 10px; }
+
+/* ---------------------------------------------------------------------------
+   PUBLIC TIER. The payload carries no site names, codes or coordinates, so the
+   surfaces whose only job is to identify an individual site are removed. They
+   would otherwise render a list of identical "withheld" rows — noise that
+   looks like data. Every aggregate view (coverage, gaps, catchments,
+   assessments, agencies) is unaffected and shows exactly the same figures. */
+body[data-tier="public"] #section-sites,
+body[data-tier="public"] #priority-site-table,
+body[data-tier="public"] [data-nav="section-sites"],
+body[data-tier="public"] .filter-field:has(#filter-site) {
+  display: none;
+}

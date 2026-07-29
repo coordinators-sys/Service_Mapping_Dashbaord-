@@ -34,12 +34,20 @@ const filters = {
 
 const slicers = {}; // dimension -> MultiSelect, created by initSlicers()
 
+// In the public tier the site code and name are absent and `siteRef` — an
+// opaque per-build reference — takes their place. Every aggregation keys off
+// this, so coverage, gap counts and catchment rollups behave identically
+// whether or not the client is allowed to know which site it is looking at.
 function siteKey(record) {
-  return record.matchedSiteCode || record.siteCodeRaw || "";
+  return record.matchedSiteCode || record.siteCodeRaw || record.siteRef || "";
 }
 
 function siteLabel(record) {
-  return record.matchedSiteName || record.siteNameRaw || siteKey(record) || "Unknown site";
+  // Never fall back to siteKey in the public tier: that would print the opaque
+  // reference where a reader expects a name, which is worse than saying so.
+  const named = record.matchedSiteName || record.siteNameRaw;
+  if (named) return named;
+  return record.siteRef ? t("site_withheld") : (siteKey(record) || "Unknown site");
 }
 
 // Applies every active filter Set. A dimension with an empty Set means
