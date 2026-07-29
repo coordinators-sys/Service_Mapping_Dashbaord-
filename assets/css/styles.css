@@ -56,9 +56,4 @@
    would otherwise render a list of identical "withheld" rows — noise that
    looks like data. Every aggregate view (coverage, gaps, catchments,
    assessments, agencies) is unaffected and shows exactly the same figures. */
-body[data-tier="public"] #section-sites,
-body[data-tier="public"] #priority-site-table,
-body[data-tier="public"] [data-nav="section-sites"],
-body[data-tier="public"] .filter-field:has(#filter-site) {
-  display: none;
-}
+body[data-tier="public"] .site-identity-only { display: none; }

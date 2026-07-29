@@ -78,6 +78,29 @@ function refreshResultState() {
   setDashState(isStale ? "stale" : hasRecords ? "ready" : "empty");
 }
 
+// In the public tier the payload carries no site identity, so any surface whose
+// only purpose is to name an individual site has nothing to show. Those are
+// REMOVED from the document rather than hidden with CSS: a hidden element still
+// renders 662 rows of "withheld" into the DOM, still lands in the accessibility
+// tree, and still ends up in a screenshot if a stylesheet fails to load.
+function applyPublicTier() {
+  const remove = (selector) => document.querySelectorAll(selector).forEach((el) => el.remove());
+  // The sites table and its section nav link: one row per site, all unnamed.
+  remove("#section-sites");
+  remove('.section-nav-link[href="#section-sites"]');
+  // The site-name filter: nothing left to filter by.
+  const siteFilter = document.getElementById("filter-site");
+  if (siteFilter && siteFilter.closest(".filter-field")) siteFilter.closest(".filter-field").remove();
+  // Export routes that exist to list individual sites, row by row. "Sites and
+  // coverage" and "Priority service gaps" would otherwise emit one row per
+  // unnamed site — and the gaps file is the most sensitive shape in the whole
+  // product, being a ranked list of the least-served locations. The remaining
+  // exports (sector, agency, catchment, district, assessment) are aggregate or
+  // carry no site identity, and stay.
+  remove('[data-export="sites"]');
+  remove('[data-export="gaps"]');
+}
+
 function showApiError(message) {
   const banner = document.getElementById("api-error-banner");
   banner.innerHTML = "";
@@ -153,6 +176,7 @@ async function loadData() {
     // of "withheld", which would be noise pretending to be data.
     state.tier = payload.tier || "partner";
     document.body.dataset.tier = state.tier;
+    if (state.tier === "public") applyPublicTier();
     state.generatedAt = payload.generatedAt || null;
     state.source = payload.source || null;
     state.geo = { districts, catchments, regions };
@@ -419,7 +443,7 @@ document.addEventListener("error", (e) => {
 
 // Bumped alongside the asset cache-bust query param (index.html ?v=N) so the
 // footer always names the build actually being served.
-const DASHBOARD_BUILD = "v47";
+const DASHBOARD_BUILD = "v48";
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
